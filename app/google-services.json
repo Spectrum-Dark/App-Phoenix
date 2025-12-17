@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "597245167956",
+    "project_id": "phoenix-631f8133",
+    "storage_bucket": "phoenix-631f8133.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:597245167956:android:71fe93c62e1322db3c20c1",
+        "android_client_info": {
+          "package_name": "com.spectrum.phoenix"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAQAIJspYJa8FQIVTJgs3B-fLUZYEh0UE8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
