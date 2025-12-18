@@ -63,7 +63,12 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.material.icons.extended)
     implementation(libs.androidx.espresso.web)
-    implementation(libs.firebase.auth)
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.3")
+    
+    implementation(platform("com.google.firebase:firebase-bom:33.1.2"))
+    implementation("com.google.firebase:firebase-auth")
+    implementation("com.google.firebase:firebase-database-ktx")
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

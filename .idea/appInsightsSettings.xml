@@ -6,14 +6,6 @@
         <entry key="Firebase Crashlytics">
           <value>
             <InsightsFilterSettings>
-              <option name="connection">
-                <ConnectionSetting>
-                  <option name="appId" value="com.spectrum.phoenix" />
-                  <option name="mobileSdkAppId" value="1:597245167956:android:71fe93c62e1322db3c20c1" />
-                  <option name="projectId" value="phoenix-631f8133" />
-                  <option name="projectNumber" value="597245167956" />
-                </ConnectionSetting>
-              </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />
               <option name="timeIntervalDays" value="THIRTY_DAYS" />
               <option name="visibilityType" value="ALL" />
