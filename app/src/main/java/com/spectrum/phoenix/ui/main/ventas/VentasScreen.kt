@@ -43,8 +43,9 @@ fun VentasScreen(ventasViewModel: VentasViewModel = viewModel()) {
     val total by ventasViewModel.total.collectAsStateWithLifecycle()
     val selectedClient by ventasViewModel.selectedClient.collectAsStateWithLifecycle()
     val filteredProducts by ventasViewModel.filteredProducts.collectAsStateWithLifecycle()
-    val allClients by ventasViewModel.allClients.collectAsStateWithLifecycle()
+    val filteredClients by ventasViewModel.filteredClients.collectAsStateWithLifecycle()
     val searchQuery by ventasViewModel.productSearchQuery.collectAsStateWithLifecycle()
+    val clientSearchQuery by ventasViewModel.clientSearchQuery.collectAsStateWithLifecycle()
     val result by ventasViewModel.saleResult.collectAsStateWithLifecycle()
 
     var showQtyDialog by remember { mutableStateOf<Product?>(null) }
@@ -84,7 +85,7 @@ fun VentasScreen(ventasViewModel: VentasViewModel = viewModel()) {
                             Text("AFILIADO / CLIENTE", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = FocusBlue)
                             Text(selectedClient?.let { "${it.name} ${it.lastName}" } ?: "Venta General", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                         }
-                        Icon(Icons.Default.UnfoldMore, null, tint = FocusBlue.copy(alpha = 0.5f), modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Search, null, tint = FocusBlue.copy(alpha = 0.5f), modifier = Modifier.size(16.dp))
                     }
                 }
 
@@ -193,6 +194,7 @@ fun VentasScreen(ventasViewModel: VentasViewModel = viewModel()) {
             }
         }
 
+        // Diálogo Cantidad
         if (showQtyDialog != null) {
             val product = showQtyDialog!!
             var qty by remember { mutableIntStateOf(1) }
@@ -217,38 +219,71 @@ fun VentasScreen(ventasViewModel: VentasViewModel = viewModel()) {
             }
         }
 
+        // Diálogo Selección de Cliente CORREGIDO (Sin cortes)
         if (showClientPicker) {
-            AlertDialog(onDismissRequest = { showClientPicker = false }) {
-                Surface(modifier = Modifier.fillMaxWidth().heightIn(max = 400.dp), shape = RoundedCornerShape(24.dp), tonalElevation = 8.dp) {
-                    Column(modifier = Modifier.padding(20.dp)) {
-                        Text("Seleccionar Cliente", fontWeight = FontWeight.Black, fontSize = 18.sp)
-                        Spacer(modifier = Modifier.height(10.dp))
-                        LazyColumn {
-                            item {
-                                ListItem(
-                                    headlineContent = { Text("Venta General", fontSize = 14.sp) },
-                                    leadingContent = { 
-                                        Box(modifier = Modifier.size(36.dp), contentAlignment = Alignment.Center) {
-                                            Icon(Icons.Default.Groups, null, modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                                        }
-                                    },
-                                    modifier = Modifier.clickable { ventasViewModel.selectClient(null); showClientPicker = false }
-                                )
+            AlertDialog(
+                onDismissRequest = { showClientPicker = false },
+                properties = DialogProperties(usePlatformDefaultWidth = false)
+            ) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(0.9f).wrapContentHeight().imePadding(), // imePadding evita el corte por teclado
+                    shape = RoundedCornerShape(24.dp), 
+                    tonalElevation = 8.dp
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Seleccionar Cliente", fontWeight = FontWeight.Black, fontSize = 18.sp, modifier = Modifier.padding(bottom = 12.dp))
+                        
+                        OutlinedTextField(
+                            value = clientSearchQuery,
+                            onValueChange = { ventasViewModel.onClientSearchQueryChange(it) },
+                            placeholder = { Text("Buscar por nombre...", fontSize = 13.sp) },
+                            leadingIcon = { Icon(Icons.Default.Search, null, modifier = Modifier.size(18.dp)) },
+                            modifier = Modifier.fillMaxWidth().height(52.dp),
+                            shape = RoundedCornerShape(10.dp),
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = FocusBlue)
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Contenedor de lista con altura controlada
+                        Box(modifier = Modifier.heightIn(max = 300.dp)) {
+                            LazyColumn {
+                                item {
+                                    ListItem(
+                                        headlineContent = { Text("Venta General", fontSize = 14.sp, fontWeight = FontWeight.Bold) },
+                                        leadingContent = { 
+                                            Box(modifier = Modifier.size(36.dp), contentAlignment = Alignment.Center) {
+                                                Icon(Icons.Default.Groups, null, modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                            }
+                                        },
+                                        modifier = Modifier.clickable { ventasViewModel.selectClient(null); showClientPicker = false }
+                                    )
+                                    HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant.copy(0.4f))
+                                }
+                                itemsIndexed(filteredClients) { _, client ->
+                                    ListItem(
+                                        headlineContent = { Text("${client.name} ${client.lastName}", fontSize = 14.sp) },
+                                        leadingContent = { 
+                                            Box(
+                                                modifier = Modifier.size(36.dp).background(FocusBlue.copy(alpha = 0.1f), CircleShape), 
+                                                contentAlignment = Alignment.Center
+                                            ) { 
+                                                Text(client.name.take(1).uppercase(), color = FocusBlue, fontWeight = FontWeight.Bold, fontSize = 14.sp) 
+                                            } 
+                                        },
+                                        modifier = Modifier.clickable { ventasViewModel.selectClient(client); showClientPicker = false }
+                                    )
+                                    HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant.copy(0.4f))
+                                }
                             }
-                            itemsIndexed(allClients) { _, client ->
-                                ListItem(
-                                    headlineContent = { Text("${client.name} ${client.lastName}", fontSize = 14.sp) },
-                                    leadingContent = { 
-                                        Box(
-                                            modifier = Modifier.size(36.dp).background(FocusBlue.copy(0.1f), CircleShape), 
-                                            contentAlignment = Alignment.Center
-                                        ) { 
-                                            Text(client.name.take(1).uppercase(), color = FocusBlue, fontWeight = FontWeight.Bold, fontSize = 14.sp) 
-                                        } 
-                                    },
-                                    modifier = Modifier.clickable { ventasViewModel.selectClient(client); showClientPicker = false }
-                                )
-                            }
+                        }
+                        
+                        TextButton(
+                            onClick = { showClientPicker = false },
+                            modifier = Modifier.align(Alignment.End).padding(top = 8.dp)
+                        ) {
+                            Text("CERRAR")
                         }
                     }
                 }

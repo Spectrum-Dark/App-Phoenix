@@ -22,15 +22,29 @@ class VentasViewModel : ViewModel() {
     
     val allClients: StateFlow<List<Client>> = clientRepository.getClients()
         .catch { emit(emptyList()) }
-        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _productSearchQuery = MutableStateFlow("")
     val productSearchQuery: StateFlow<String> = _productSearchQuery
 
+    private val _clientSearchQuery = MutableStateFlow("")
+    val clientSearchQuery: StateFlow<String> = _clientSearchQuery
+
+    // Búsqueda normal de productos
     val filteredProducts: StateFlow<List<Product>> = _productSearchQuery
         .combine(allProducts) { query, products ->
             if (query.isEmpty()) emptyList()
             else products.filter { it.name.contains(query, ignoreCase = true) }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    // Búsqueda normal de clientes
+    val filteredClients: StateFlow<List<Client>> = _clientSearchQuery
+        .combine(allClients) { query, clients ->
+            if (query.isEmpty()) clients
+            else clients.filter { 
+                it.name.contains(query, ignoreCase = true) || 
+                it.lastName.contains(query, ignoreCase = true) 
+            }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _cartItems = MutableStateFlow<List<SaleItem>>(emptyList())
@@ -50,8 +64,13 @@ class VentasViewModel : ViewModel() {
         _productSearchQuery.value = query
     }
 
+    fun onClientSearchQueryChange(query: String) {
+        _clientSearchQuery.value = query
+    }
+
     fun selectClient(client: Client?) {
         _selectedClient.value = client
+        _clientSearchQuery.value = "" 
     }
 
     fun addToCart(product: Product, quantity: Int) {

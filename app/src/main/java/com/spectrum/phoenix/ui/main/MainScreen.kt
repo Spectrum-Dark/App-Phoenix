@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
@@ -31,10 +32,12 @@ import com.spectrum.phoenix.ui.main.clientes.creditos.CreditosScreen
 import com.spectrum.phoenix.ui.main.clientes.lista.ListaClientesScreen
 import com.spectrum.phoenix.ui.main.dashboard.DashboardScreen
 import com.spectrum.phoenix.ui.main.perfil.PerfilScreen
+import com.spectrum.phoenix.ui.main.configuracion.BackupScreen
 import com.spectrum.phoenix.ui.main.productos.almacen.AlmacenScreen
 import com.spectrum.phoenix.ui.main.productos.vencimiento.VencimientoScreen
 import com.spectrum.phoenix.ui.main.reportes.ReportesScreen
 import com.spectrum.phoenix.ui.main.ventas.VentasScreen
+import com.spectrum.phoenix.ui.main.ventas.historial.HistorialVentasScreen
 import com.spectrum.phoenix.ui.theme.FocusBlue
 import com.spectrum.phoenix.ui.theme.PhoenixTheme
 import kotlinx.coroutines.launch
@@ -55,7 +58,13 @@ fun MainScreen(navController: NavController, userName: String = "Usuario") {
     val adminPanel = MenuItem("admin_panel", "Panel administrativo", Icons.Default.AdminPanelSettings, children = listOf(
         MenuItem("dashboard", "Dashboard", Icons.Default.Dashboard),
         MenuItem("ventas", "Ventas", Icons.Default.PointOfSale),
+        MenuItem("historial_ventas", "Historial de Ventas", Icons.Default.History),
         MenuItem("reportes", "Reportes", Icons.Default.Assessment)
+    ))
+
+    val configPanel = MenuItem("configuracion", "Configuración", Icons.Default.Settings, children = listOf(
+        MenuItem("perfil", "Perfil", Icons.Default.Person),
+        MenuItem("backup", "Copias de Seguridad", Icons.Default.CloudUpload)
     ))
 
     val menuItems = listOf(
@@ -65,12 +74,11 @@ fun MainScreen(navController: NavController, userName: String = "Usuario") {
             MenuItem("vencimiento", "Vencimiento", Icons.Default.Event)
         )),
         MenuItem("clientes", "Clientes", Icons.Default.People, children = listOf(
-            MenuItem("lista", "Afiliados", Icons.AutoMirrored.Filled.List), // Nombre cambiado aquí
+            MenuItem("lista", "Afiliados", Icons.AutoMirrored.Filled.List),
             MenuItem("creditos", "Creditos", Icons.Default.CreditCard)
-        ))
+        )),
+        configPanel
     )
-
-    val perfilMenuItem = MenuItem("perfil", "Perfil", Icons.Default.Person)
 
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
@@ -78,7 +86,6 @@ fun MainScreen(navController: NavController, userName: String = "Usuario") {
 
     var selectedItem by remember { mutableStateOf<MenuItem?>(adminPanel.children[0]) }
     var expandedItems by remember { mutableStateOf(setOf("admin_panel")) }
-    var showUserMenu by remember { mutableStateOf(false) }
 
     PhoenixTheme {
         ModalNavigationDrawer(
@@ -187,101 +194,75 @@ fun MainScreen(navController: NavController, userName: String = "Usuario") {
 
                         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.outlineVariant)
 
-                        Box(modifier = Modifier.padding(bottom = 16.dp)) {
-                            NavigationDrawerItem(
-                                label = {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(
-                                            text = userName,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.onSurface,
-                                            modifier = Modifier.weight(1f)
-                                        )
-                                        Icon(Icons.Default.MoreVert, contentDescription = null, modifier = Modifier.size(20.dp))
+                        // SECCIÓN DE USUARIO CON BOTÓN DE CIERRE PRO (ROJO SÓLIDO / ICONO BLANCO)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 20.dp, start = 8.dp, end = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                                Box(
+                                    modifier = Modifier.size(36.dp).clip(CircleShape).background(FocusBlue.copy(alpha = 0.1f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(text = userName.take(1).uppercase(), color = FocusBlue, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(text = userName, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
+                            }
+                            
+                            SmallFloatingActionButton(
+                                onClick = {
+                                    scope.launch { drawerState.close() }
+                                    sessionManager.clearSession()
+                                    navController.navigate("login") {
+                                        popUpTo("main/{userName}") { inclusive = true }
                                     }
                                 },
-                                icon = {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(36.dp)
-                                            .clip(CircleShape)
-                                            .background(FocusBlue),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text(
-                                            text = userName.take(1).uppercase(),
-                                            color = Color.White,
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 16.sp
-                                        )
-                                    }
-                                },
-                                selected = false,
-                                onClick = { showUserMenu = !showUserMenu },
-                                modifier = Modifier.height(56.dp).padding(vertical = 2.dp)
-                            )
-
-                            DropdownMenu(
-                                expanded = showUserMenu,
-                                onDismissRequest = { showUserMenu = false },
-                                modifier = Modifier.width(180.dp)
+                                containerColor = MaterialTheme.colorScheme.error, // ROJO SÓLIDO
+                                contentColor = Color.White, // ICONO BLANCO
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.size(40.dp)
                             ) {
-                                DropdownMenuItem(
-                                    text = { Text("Ver Perfil") },
-                                    leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(20.dp)) },
-                                    onClick = {
-                                        showUserMenu = false
-                                        scope.launch { drawerState.close() }
-                                        selectedItem = perfilMenuItem
-                                        mainContentNavController.navigate("perfil")
-                                    }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("Cerrar sesión", color = MaterialTheme.colorScheme.error) },
-                                    leadingIcon = { Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp)) },
-                                    onClick = {
-                                        showUserMenu = false
-                                        scope.launch { drawerState.close() }
-                                        // LIMPIAR SESION AL CERRAR
-                                        sessionManager.clearSession()
-                                        navController.navigate("login") {
-                                            popUpTo("main/{userName}") { inclusive = true }
-                                        }
-                                    }
-                                )
+                                Icon(Icons.AutoMirrored.Filled.Logout, null, modifier = Modifier.size(18.dp))
                             }
                         }
                     }
                 }
-            }
-        ) {
-            Scaffold(
-                topBar = {
-                    TopAppBar(
-                        title = { Text(text = selectedItem?.title ?: "", fontWeight = FontWeight.SemiBold, fontSize = 18.sp) },
-                        navigationIcon = {
-                            IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                                Icon(Icons.Default.Menu, contentDescription = null)
+            },
+            content = {
+                Scaffold(
+                    topBar = {
+                        TopAppBar(
+                            title = { Text(text = selectedItem?.title ?: "", fontWeight = FontWeight.SemiBold, fontSize = 18.sp) },
+                            navigationIcon = {
+                                IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                                    Icon(Icons.Default.Menu, contentDescription = null)
+                                }
                             }
-                        }
-                    )
-                }
-            ) { padding ->
-                NavHost(
-                    navController = mainContentNavController,
-                    startDestination = "dashboard",
-                    modifier = Modifier.padding(padding)
-                ) {
-                    composable("dashboard") { DashboardScreen() }
-                    composable("ventas") { VentasScreen() }
-                    composable("reportes") { ReportesScreen() }
-                    composable("almacen") { AlmacenScreen() }
-                    composable("vencimiento") { VencimientoScreen() }
-                    composable("lista") { ListaClientesScreen() }
-                    composable("creditos") { CreditosScreen() }
-                    composable("perfil") { PerfilScreen() }
+                        )
+                    }
+                ) { innerPadding ->
+                    NavHost(
+                        navController = mainContentNavController,
+                        startDestination = "dashboard",
+                        modifier = Modifier.padding(innerPadding)
+                    ) {
+                        composable("dashboard") { DashboardScreen() }
+                        composable("ventas") { VentasScreen() }
+                        composable("historial_ventas") { HistorialVentasScreen() }
+                        composable("reportes") { ReportesScreen() }
+                        composable("almacen") { AlmacenScreen() }
+                        composable("vencimiento") { VencimientoScreen() }
+                        composable("lista") { ListaClientesScreen() }
+                        composable("creditos") { CreditosScreen() }
+                        composable("perfil") { PerfilScreen() }
+                        composable("backup") { BackupScreen() }
+                    }
                 }
             }
-        }
+        )
     }
 }
