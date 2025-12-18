@@ -20,7 +20,6 @@ class CreditRepository {
     private val creditsRef = db.getReference("Creditos")
 
     private fun getToday(): String = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())
-    // CAMBIO A 12 HORAS AM/PM
     private fun getNowFull(): String = SimpleDateFormat("dd/MM/yyyy hh:mm:ss a", Locale.getDefault()).format(Date())
 
     suspend fun addCharge(clientId: String, clientName: String, amount: Double, saleId: String, items: List<SaleItem>): Result<Unit> {
@@ -36,32 +35,13 @@ class CreditRepository {
             if (existingIndex != -1) {
                 val currentCargo = history[existingIndex]
                 val updatedItems = currentCargo.items.toMutableList().apply { addAll(items) }
-                
-                history[existingIndex] = currentCargo.copy(
-                    amount = currentCargo.amount + amount,
-                    fullDate = getNowFull(),
-                    items = updatedItems,
-                    description = "Compras acumuladas hoy"
-                )
+                history[existingIndex] = currentCargo.copy(amount = currentCargo.amount + amount, fullDate = getNowFull(), items = updatedItems, description = "Compras acumuladas hoy")
             } else {
-                val newMovement = CreditMovement(
-                    id = saleId,
-                    date = today,
-                    fullDate = getNowFull(),
-                    amount = amount,
-                    type = "CARGO",
-                    description = "Compra de productos",
-                    items = items
-                )
+                val newMovement = CreditMovement(id = saleId, date = today, fullDate = getNowFull(), amount = amount, type = "CARGO", description = "Compra de productos", items = items)
                 history.add(newMovement)
             }
 
-            credit = credit.copy(
-                totalDebt = credit.totalDebt + amount,
-                lastUpdate = getNowFull(),
-                history = history
-            )
-            
+            credit = credit.copy(totalDebt = credit.totalDebt + amount, lastUpdate = getNowFull(), history = history)
             creditsRef.child(clientId).setValue(credit).await()
             Result.success(Unit)
         } catch (e: Exception) {
@@ -69,28 +49,9 @@ class CreditRepository {
         }
     }
 
-    suspend fun addAbono(clientId: String, amount: Double, description: String): Result<Unit> {
+    suspend fun clearAll(): Result<Unit> {
         return try {
-            val snapshot = creditsRef.child(clientId).get().await()
-            val credit = snapshot.getValue(Credit::class.java) ?: throw Exception("No se encontró registro")
-            
-            val movement = CreditMovement(
-                id = creditsRef.push().key ?: "",
-                date = getToday(),
-                fullDate = getNowFull(),
-                amount = amount,
-                type = "ABONO",
-                description = description
-            )
-            
-            val newHistory = credit.history.toMutableList().apply { add(movement) }
-            val newDebt = (credit.totalDebt - amount).coerceAtLeast(0.0)
-            
-            creditsRef.child(clientId).setValue(credit.copy(
-                totalDebt = newDebt,
-                lastUpdate = getNowFull(),
-                history = newHistory
-            )).await()
+            creditsRef.removeValue().await()
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)

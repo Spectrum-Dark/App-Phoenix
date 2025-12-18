@@ -69,6 +69,16 @@ class SaleRepository {
         awaitClose { salesRef.removeEventListener(listener) }
     }
 
+    suspend fun clearAllSales(): Result<Unit> {
+        return try {
+            salesRef.removeValue().await()
+            logRepo.logAction("Historial Limpiado", "Se vació el registro de operaciones")
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun revertSale(sale: Sale): Result<Unit> {
         return try {
             sale.items.forEach { item ->

@@ -15,15 +15,32 @@ import java.util.*
 class ActivityLogRepository {
     private val db = FirebaseDatabase.getInstance()
     private val logsRef = db.getReference("Logs")
+    private val managuaTimeZone = TimeZone.getTimeZone("America/Managua")
 
-    private fun getNowFull(): String = SimpleDateFormat("dd/MM/yyyy hh:mm:ss a", Locale.getDefault()).format(Date())
-    private fun getTodayDate(): String = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())
+    private fun getTodayDate(): String {
+        val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+        sdf.timeZone = managuaTimeZone
+        return sdf.format(Date())
+    }
+
+    private fun getNowTime(): String {
+        val sdf = SimpleDateFormat("hh:mm:ss a", Locale.getDefault())
+        sdf.timeZone = managuaTimeZone
+        return sdf.format(Date())
+    }
 
     suspend fun logAction(action: String, details: String): Result<Unit> {
         return try {
             val newRef = logsRef.push()
             val id = newRef.key ?: throw Exception("No ID")
-            val log = ActivityLog(id, action, details, System.currentTimeMillis(), getNowFull())
+            val log = ActivityLog(
+                id = id, 
+                action = action, 
+                details = details, 
+                timestamp = System.currentTimeMillis(), 
+                date = getTodayDate(),
+                time = getNowTime()
+            )
             logsRef.child(id).setValue(log).await()
             Result.success(Unit)
         } catch (e: Exception) {
@@ -37,14 +54,14 @@ class ActivityLogRepository {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val allLogs = snapshot.children.mapNotNull { it.getValue(ActivityLog::class.java) }
                 
-                // 1. Identificar logs antiguos para ELIMINAR de la base de datos
-                val oldLogs = allLogs.filter { !it.date.startsWith(today) }
+                // Purga automática de días anteriores
+                val oldLogs = allLogs.filter { it.date != today }
                 if (oldLogs.isNotEmpty()) {
                     oldLogs.forEach { log -> logsRef.child(log.id).removeValue() }
                 }
 
-                // 2. Mostrar solo los de HOY en la app
-                val todayLogs = allLogs.filter { it.date.startsWith(today) }
+                // Mostrar actividad de hoy
+                val todayLogs = allLogs.filter { it.date == today }
                     .sortedByDescending { it.timestamp }
                 
                 trySend(todayLogs)

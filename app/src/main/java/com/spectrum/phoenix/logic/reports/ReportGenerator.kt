@@ -10,14 +10,15 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
-import android.widget.Toast
+import com.spectrum.phoenix.ui.components.ToastController
+import com.spectrum.phoenix.ui.components.ToastType
 import java.io.File
 import java.io.FileOutputStream
 import java.io.OutputStream
 import java.text.SimpleDateFormat
 import java.util.*
 
-class ReportGenerator(private val context: Context) {
+class ReportGenerator(private val context: Context, private val toast: ToastController) {
 
     private val pageWidth = 612
     private val pageHeight = 792
@@ -37,9 +38,8 @@ class ReportGenerator(private val context: Context) {
             val page = pdfDocument.startPage(pageInfo)
             val canvas = page.canvas
             
-            canvas.drawText("PHOENIX APP - SISTEMA DE CONTROL", margin, 40f, paintHeader)
+            canvas.drawText("PHOENIX ENTERPRISE - SISTEMA DE CONTROL", margin, 40f, paintHeader)
             canvas.drawText("REPORTE: $title", margin, 60f, paintText.apply { isFakeBoldText = true })
-            // CAMBIO A 12 HORAS AM/PM EN REPORTE
             canvas.drawText("Fecha: ${SimpleDateFormat("dd/MM/yyyy hh:mm:ss a", Locale.getDefault()).format(Date())}", margin, 75f, paintText.apply { isFakeBoldText = false })
             canvas.drawLine(margin, 85f, pageWidth - margin, 85f, Paint().apply { color = Color.LTGRAY })
             
@@ -104,16 +104,16 @@ class ReportGenerator(private val context: Context) {
                 uri?.let {
                     val outputStream = context.contentResolver.openOutputStream(it)
                     outputStream?.use { os -> pdfDocument.writeTo(os) }
-                    Toast.makeText(context, "PDF guardado en Descargas", Toast.LENGTH_LONG).show()
+                    toast.show("PDF guardado en Descargas", ToastType.SUCCESS)
                 }
             } else {
                 val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
                 val file = File(downloadsDir, fileName)
                 pdfDocument.writeTo(FileOutputStream(file))
-                Toast.makeText(context, "PDF guardado en Descargas", Toast.LENGTH_LONG).show()
+                toast.show("PDF guardado en Descargas", ToastType.SUCCESS)
             }
         } catch (e: Exception) {
-            Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+            toast.show("Error: ${e.message}", ToastType.ERROR)
         } finally {
             pdfDocument.close()
         }

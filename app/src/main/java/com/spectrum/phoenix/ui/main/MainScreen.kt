@@ -51,31 +51,34 @@ data class MenuItem(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen(navController: NavController, userName: String = "Usuario") {
+fun MainScreen(navController: NavController) {
     val context = LocalContext.current
     val sessionManager = remember { SessionManager(context) }
     
-    val adminPanel = MenuItem("admin_panel", "Panel administrativo", Icons.Default.AdminPanelSettings, children = listOf(
-        MenuItem("dashboard", "Dashboard", Icons.Default.Dashboard),
-        MenuItem("ventas", "Ventas", Icons.Default.PointOfSale),
-        MenuItem("historial_ventas", "Historial de Ventas", Icons.Default.History),
-        MenuItem("reportes", "Reportes", Icons.Default.Assessment)
+    // ESTADO DEL NOMBRE EN TIEMPO REAL
+    var currentUserName by remember { mutableStateOf(sessionManager.getUserName() ?: "Usuario") }
+
+    val adminPanel = MenuItem("admin_panel", "Panel Administrativo", Icons.Default.AdminPanelSettings, children = listOf(
+        MenuItem("dashboard", "Dashboard Principal", Icons.Default.Dashboard),
+        MenuItem("ventas", "Punto de Venta", Icons.Default.PointOfSale),
+        MenuItem("historial_ventas", "Registro de Operaciones", Icons.Default.History),
+        MenuItem("reportes", "Centro de Inteligencia", Icons.Default.Assessment)
     ))
 
-    val configPanel = MenuItem("configuracion", "Configuración", Icons.Default.Settings, children = listOf(
-        MenuItem("perfil", "Perfil", Icons.Default.Person),
-        MenuItem("backup", "Copias de Seguridad", Icons.Default.CloudUpload)
+    val configPanel = MenuItem("configuracion", "Ajustes y Configuración", Icons.Default.Settings, children = listOf(
+        MenuItem("perfil", "Mi Perfil de Usuario", Icons.Default.Person),
+        MenuItem("backup", "Respaldo de Datos", Icons.Default.CloudUpload)
     ))
 
     val menuItems = listOf(
         adminPanel,
-        MenuItem("productos", "Productos", Icons.Default.Inventory, children = listOf(
-            MenuItem("almacen", "Almacen", Icons.Default.Warehouse),
-            MenuItem("vencimiento", "Vencimiento", Icons.Default.Event)
+        MenuItem("productos", "Gestión de Inventario", Icons.Default.Inventory, children = listOf(
+            MenuItem("almacen", "Control de Stock", Icons.Default.Warehouse),
+            MenuItem("vencimiento", "Control de Caducidad", Icons.Default.Event)
         )),
-        MenuItem("clientes", "Clientes", Icons.Default.People, children = listOf(
-            MenuItem("lista", "Afiliados", Icons.AutoMirrored.Filled.List),
-            MenuItem("creditos", "Creditos", Icons.Default.CreditCard)
+        MenuItem("clientes", "Cartera de Clientes", Icons.Default.People, children = listOf(
+            MenuItem("lista", "Afiliados Registrados", Icons.AutoMirrored.Filled.List),
+            MenuItem("creditos", "Estado de Cuentas", Icons.Default.CreditCard)
         )),
         configPanel
     )
@@ -86,6 +89,11 @@ fun MainScreen(navController: NavController, userName: String = "Usuario") {
 
     var selectedItem by remember { mutableStateOf<MenuItem?>(adminPanel.children[0]) }
     var expandedItems by remember { mutableStateOf(setOf("admin_panel")) }
+
+    // Efecto para actualizar el nombre del menú cada vez que se navega (por si cambió en el Perfil)
+    LaunchedEffect(mainContentNavController.currentBackStackEntry) {
+        currentUserName = sessionManager.getUserName() ?: "Usuario"
+    }
 
     PhoenixTheme {
         ModalNavigationDrawer(
@@ -101,9 +109,9 @@ fun MainScreen(navController: NavController, userName: String = "Usuario") {
                             .padding(horizontal = 12.dp)
                     ) {
                         Text(
-                            "Phoenix App",
+                            "Phoenix Enterprise",
                             style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
+                            fontWeight = FontWeight.Black,
                             color = FocusBlue,
                             modifier = Modifier.padding(start = 16.dp, top = 24.dp, bottom = 16.dp)
                         )
@@ -119,7 +127,7 @@ fun MainScreen(navController: NavController, userName: String = "Usuario") {
                                 if (item.children.isEmpty()) {
                                     NavigationDrawerItem(
                                         icon = { Icon(item.icon, contentDescription = null, modifier = Modifier.size(22.dp)) },
-                                        label = { Text(item.title, fontWeight = if (item == selectedItem) FontWeight.Bold else FontWeight.Normal) },
+                                        label = { Text(item.title, fontWeight = if (item == selectedItem) FontWeight.ExtraBold else FontWeight.Medium, fontSize = 14.sp) },
                                         selected = item == selectedItem,
                                         colors = NavigationDrawerItemDefaults.colors(
                                             selectedContainerColor = FocusBlue.copy(alpha = 0.1f),
@@ -143,7 +151,7 @@ fun MainScreen(navController: NavController, userName: String = "Usuario") {
                                     NavigationDrawerItem(
                                         label = {
                                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Text(item.title, modifier = Modifier.weight(1f))
+                                                Text(item.title, modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold, fontSize = 14.sp)
                                                 Icon(
                                                     imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                                                     contentDescription = null,
@@ -168,7 +176,7 @@ fun MainScreen(navController: NavController, userName: String = "Usuario") {
                                             item.children.forEach { child ->
                                                 NavigationDrawerItem(
                                                     icon = { Icon(child.icon, contentDescription = null, modifier = Modifier.size(18.dp)) },
-                                                    label = { Text(child.title, fontSize = 14.sp, fontWeight = if (child == selectedItem) FontWeight.Bold else FontWeight.Normal) },
+                                                    label = { Text(child.title, fontSize = 13.sp, fontWeight = if (child == selectedItem) FontWeight.Bold else FontWeight.Normal) },
                                                     selected = child == selectedItem,
                                                     colors = NavigationDrawerItemDefaults.colors(
                                                         selectedContainerColor = FocusBlue.copy(alpha = 0.1f),
@@ -194,7 +202,6 @@ fun MainScreen(navController: NavController, userName: String = "Usuario") {
 
                         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.outlineVariant)
 
-                        // SECCIÓN DE USUARIO CON BOTÓN DE CIERRE PRO (ROJO SÓLIDO / ICONO BLANCO)
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -207,10 +214,10 @@ fun MainScreen(navController: NavController, userName: String = "Usuario") {
                                     modifier = Modifier.size(36.dp).clip(CircleShape).background(FocusBlue.copy(alpha = 0.1f)),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text(text = userName.take(1).uppercase(), color = FocusBlue, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                    Text(text = currentUserName.take(1).uppercase(), color = FocusBlue, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                                 }
                                 Spacer(modifier = Modifier.width(12.dp))
-                                Text(text = userName, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
+                                Text(text = currentUserName, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
                             }
                             
                             SmallFloatingActionButton(
@@ -218,11 +225,11 @@ fun MainScreen(navController: NavController, userName: String = "Usuario") {
                                     scope.launch { drawerState.close() }
                                     sessionManager.clearSession()
                                     navController.navigate("login") {
-                                        popUpTo("main/{userName}") { inclusive = true }
+                                        popUpTo("main") { inclusive = true }
                                     }
                                 },
-                                containerColor = MaterialTheme.colorScheme.error, // ROJO SÓLIDO
-                                contentColor = Color.White, // ICONO BLANCO
+                                containerColor = MaterialTheme.colorScheme.error,
+                                contentColor = Color.White,
                                 shape = RoundedCornerShape(12.dp),
                                 modifier = Modifier.size(40.dp)
                             ) {

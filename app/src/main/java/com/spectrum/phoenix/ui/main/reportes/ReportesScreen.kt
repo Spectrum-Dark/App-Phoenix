@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.spectrum.phoenix.logic.reports.ReportesViewModel
+import com.spectrum.phoenix.ui.components.LocalToastController
 import com.spectrum.phoenix.ui.theme.FocusBlue
 import com.spectrum.phoenix.ui.theme.PhoenixTheme
 
@@ -34,6 +35,7 @@ data class ReportOption(
 @Composable
 fun ReportesScreen(reportesViewModel: ReportesViewModel = viewModel()) {
     val context = LocalContext.current
+    val toast = LocalToastController.current // USAR NUEVO TOAST
     
     val inventoryReports = listOf(
         ReportOption("Entradas de Hoy", "ENTRADAS", Icons.Default.MoveToInbox, Color(0xFF4CAF50), "Stock ingresado en la fecha actual"),
@@ -59,22 +61,19 @@ fun ReportesScreen(reportesViewModel: ReportesViewModel = viewModel()) {
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            // SECCIÓN: INVENTARIO
             item { ReportSectionTitle("GESTIÓN DE INVENTARIO") }
             items(inventoryReports) { option ->
-                ReportListCard(option) { reportesViewModel.generateReport(context, option.type) }
+                ReportListCard(option) { reportesViewModel.generateReport(context, option.type, toast) }
             }
 
-            // SECCIÓN: CLIENTES
             item { ReportSectionTitle("CLIENTES Y CRÉDITOS") }
             items(clientReports) { option ->
-                ReportListCard(option) { reportesViewModel.generateReport(context, option.type) }
+                ReportListCard(option) { reportesViewModel.generateReport(context, option.type, toast) }
             }
 
-            // SECCIÓN: VENTAS
             item { ReportSectionTitle("FINANZAS Y VENTAS") }
             items(financeReports) { option ->
-                ReportListCard(option) { reportesViewModel.generateReport(context, option.type) }
+                ReportListCard(option) { reportesViewModel.generateReport(context, option.type, toast) }
             }
             
             item { Spacer(modifier = Modifier.height(100.dp)) }
@@ -110,9 +109,7 @@ fun ReportListCard(option: ReportOption, onClick: () -> Unit) {
             Box(
                 modifier = Modifier.size(38.dp).background(option.color.copy(alpha = 0.1f), CircleShape),
                 contentAlignment = Alignment.Center
-            ) {
-                Icon(option.icon, null, tint = option.color, modifier = Modifier.size(18.dp))
-            }
+            ) { Icon(option.icon, null, tint = option.color, modifier = Modifier.size(18.dp)) }
             Spacer(modifier = Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(option.title, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)

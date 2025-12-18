@@ -2,8 +2,9 @@ package com.spectrum.phoenix.logic.model
 
 data class ActivityLog(
     val id: String = "",
-    val action: String = "", // e.g., "Producto Agregado", "Venta Realizada", etc.
+    val action: String = "",
     val details: String = "",
     val timestamp: Long = System.currentTimeMillis(),
-    val date: String = "" // Formato dd/MM/yyyy hh:mm:ss a
+    val date: String = "", // dd/MM/yyyy
+    val time: String = ""  // hh:mm:ss a
 )

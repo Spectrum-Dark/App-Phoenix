@@ -35,6 +35,13 @@ class HistorialVentasViewModel : ViewModel() {
         }
     }
 
+    // FUNCIÓN CORREGIDA PARA VACIAR TODO EL HISTORIAL
+    fun clearAllHistory() {
+        viewModelScope.launch {
+            _opResult.value = repository.clearAllSales()
+        }
+    }
+
     fun clearResult() {
         _opResult.value = null
     }

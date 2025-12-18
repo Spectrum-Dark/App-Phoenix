@@ -37,85 +37,83 @@ fun DashboardScreen(dashboardViewModel: DashboardViewModel = viewModel()) {
     val priceGreen = Color(0xFF4CAF50)
 
     PhoenixTheme {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .padding(horizontal = 16.dp)
         ) {
-            // TARJETAS DE FINANZAS
-            item {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    DashboardCard(Modifier.weight(1f), "VENTAS", "C$ ${String.format("%.2f", ventas)}", Icons.Default.Payments, priceGreen)
-                    DashboardCard(Modifier.weight(1f), "CRÉDITOS", "C$ ${String.format("%.2f", creditos)}", Icons.Default.CreditCard, Color(0xFFE91E63))
-                }
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                DashboardCard(Modifier.weight(1f), "VENTAS", "C$ ${String.format("%.2f", ventas)}", Icons.Default.Payments, priceGreen)
+                DashboardCard(Modifier.weight(1f), "CRÉDITOS", "C$ ${String.format("%.2f", creditos)}", Icons.Default.CreditCard, Color(0xFFE91E63))
             }
 
-            // TARJETA SUMA TOTAL (DISEÑO PHOENIX PRO)
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = FocusBlue.copy(alpha = 0.08f)),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, FocusBlue.copy(alpha = 0.2f))
-                ) {
-                    Row(modifier = Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("TOTAL GLOBAL (VENTAS + CRÉDITOS)", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = FocusBlue)
-                            Text("C$ ${String.format("%.2f", totalGlobal)}", fontSize = 24.sp, fontWeight = FontWeight.Black, color = priceGreen)
-                        }
-                        Box(modifier = Modifier.size(40.dp).background(FocusBlue.copy(alpha = 0.15f), CircleShape), contentAlignment = Alignment.Center) {
-                            Icon(Icons.Default.AccountBalance, null, tint = FocusBlue, modifier = Modifier.size(22.dp))
-                        }
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = FocusBlue.copy(alpha = 0.08f)),
+                border = androidx.compose.foundation.BorderStroke(1.dp, FocusBlue.copy(alpha = 0.2f))
+            ) {
+                Row(modifier = Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("TOTAL GLOBAL (VENTAS + CRÉDITOS)", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = FocusBlue)
+                        Text("C$ ${String.format("%.2f", totalGlobal)}", fontSize = 24.sp, fontWeight = FontWeight.Black, color = priceGreen)
+                    }
+                    Box(modifier = Modifier.size(40.dp).background(FocusBlue.copy(alpha = 0.15f), CircleShape), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.AccountBalance, null, tint = FocusBlue, modifier = Modifier.size(22.dp))
                     }
                 }
             }
 
-            // TARJETAS DE INVENTARIO Y CLIENTES
-            item {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f), RoundedCornerShape(20.dp))
-                        .padding(16.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.QueryStats, null, tint = FocusBlue, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("ESTADÍSTICAS DE CONTROL", fontWeight = FontWeight.Black, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    
-                    Spacer(modifier = Modifier.height(16.dp))
-                    
-                    StatRow("Productos Registrados", pRegistrados.toString(), Icons.Default.Inventory)
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                    StatRow("Unidades en Stock Total", stockTotal.toString(), Icons.Default.Warehouse)
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                    StatRow("Total Afiliados", clientes.toString(), Icons.Default.People)
-                }
-            }
+            Spacer(modifier = Modifier.height(12.dp))
 
-            // HISTORIAL DE ACTIVIDAD
-            item {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 12.dp)) {
-                    Icon(Icons.Default.History, null, tint = FocusBlue, modifier = Modifier.size(18.dp))
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f), RoundedCornerShape(20.dp))
+                    .padding(16.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.QueryStats, null, tint = FocusBlue, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("ACTIVIDAD RECIENTE", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Black, color = FocusBlue)
+                    Text("ESTADÍSTICAS DE CONTROL", fontWeight = FontWeight.Black, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
+                Spacer(modifier = Modifier.height(16.dp))
+                StatRow("Productos Registrados", pRegistrados.toString(), Icons.Default.Inventory)
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                StatRow("Unidades en Stock Total", stockTotal.toString(), Icons.Default.Warehouse)
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                StatRow("Total Afiliados", clientes.toString(), Icons.Default.People)
             }
 
-            if (logs.isEmpty()) {
-                item {
-                    Box(modifier = Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.History, null, tint = FocusBlue, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("ACTIVIDAD RECIENTE", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Black, color = FocusBlue)
+            }
+
+            Box(modifier = Modifier.weight(1f)) {
+                if (logs.isEmpty()) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text("Esperando actividad...", color = Color.Gray, fontSize = 12.sp)
                     }
-                }
-            } else {
-                items(logs) { log ->
-                    ActivityItem(log.action, log.details, log.date)
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(top = 8.dp, bottom = 20.dp)
+                    ) {
+                        items(logs) { log ->
+                            ActivityItem(log.action, log.details, log.time) // USAR log.time DIRECTAMENTE
+                        }
+                    }
                 }
             }
-            
-            item { Spacer(modifier = Modifier.height(100.dp)) }
         }
     }
 }
@@ -167,7 +165,12 @@ fun ActivityItem(action: String, details: String, time: String) {
             Column {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Text(action, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface)
-                    Text(time.takeLast(11), fontSize = 10.sp, color = Color.Gray)
+                    Text(
+                        text = time, 
+                        fontSize = 10.sp, 
+                        color = Color.Gray,
+                        modifier = Modifier.padding(start = 8.dp)
+                    )
                 }
                 Text(details, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, lineHeight = 16.sp)
             }

@@ -22,6 +22,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.spectrum.phoenix.logic.model.Product
 import com.spectrum.phoenix.logic.vencimiento.VencimientoViewModel
+import com.spectrum.phoenix.ui.components.LocalToastController
+import com.spectrum.phoenix.ui.components.ToastType
 import com.spectrum.phoenix.ui.theme.FocusBlue
 import com.spectrum.phoenix.ui.theme.PhoenixTheme
 import java.text.SimpleDateFormat
@@ -33,7 +35,7 @@ fun VencimientoScreen(vencimientoViewModel: VencimientoViewModel = viewModel()) 
     val expiringProducts by vencimientoViewModel.expiringProducts.collectAsStateWithLifecycle()
     val searchQuery by vencimientoViewModel.searchQuery.collectAsStateWithLifecycle()
     val deleteResult by vencimientoViewModel.deleteResult.collectAsStateWithLifecycle()
-    val context = LocalContext.current
+    val toast = LocalToastController.current // ACTIVADO TOAST PRO
     
     var productToDelete by remember { mutableStateOf<Product?>(null) }
     var showDeleteAllConfirm by remember { mutableStateOf(false) }
@@ -41,88 +43,71 @@ fun VencimientoScreen(vencimientoViewModel: VencimientoViewModel = viewModel()) 
     LaunchedEffect(deleteResult) {
         deleteResult?.let {
             if (it.isSuccess) {
-                Toast.makeText(context, "Operación completada", Toast.LENGTH_SHORT).show()
+                toast.show("Operación completada", ToastType.SUCCESS)
                 vencimientoViewModel.clearResult()
             } else {
-                Toast.makeText(context, "Error: ${it.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
+                toast.show(it.exceptionOrNull()?.message ?: "Error", ToastType.ERROR)
             }
         }
     }
 
     PhoenixTheme {
-        Box(modifier = Modifier.fillMaxSize()) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp)
-            ) {
+        Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+            Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { vencimientoViewModel.onSearchQueryChange(it) },
-                    placeholder = { Text("Buscar por nombre...") },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = FocusBlue) },
-                    trailingIcon = {
-                        if (searchQuery.isNotEmpty()) {
-                            IconButton(onClick = { vencimientoViewModel.onSearchQueryChange("") }) {
-                                Icon(Icons.Default.Close, contentDescription = null)
-                            }
-                        }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-                    shape = RoundedCornerShape(16.dp),
+                    placeholder = { Text("Filtrar por nombre...") },
+                    leadingIcon = { Icon(Icons.Default.Search, null, tint = FocusBlue) },
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                    shape = RoundedCornerShape(12.dp),
                     singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = FocusBlue,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
-                    )
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = FocusBlue)
                 )
 
                 if (expiringProducts.isEmpty()) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(Icons.Default.Verified, contentDescription = null, tint = Color(0xFF4CAF50), modifier = Modifier.size(48.dp))
+                            Icon(Icons.Default.Verified, null, tint = Color(0xFF4CAF50), modifier = Modifier.size(48.dp))
                             Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                if (searchQuery.isEmpty()) "Sin vencimientos próximos" else "Sin resultados",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            Text("No se detectan vencimientos críticos", color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 } else {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         verticalArrangement = Arrangement.spacedBy(10.dp),
-                        contentPadding = PaddingValues(top = 4.dp, bottom = 100.dp)
+                        contentPadding = PaddingValues(bottom = 100.dp)
                     ) {
                         item {
-                            Row(
-                                modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    "Control de Vencimientos",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                TextButton(onClick = { showDeleteAllConfirm = true }) {
-                                    Text("Limpiar todo", color = Color.Red, fontSize = 12.sp)
+                            Row(modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                Text("ALERTAS DE CADUCIDAD", style = MaterialTheme.typography.labelLarge, color = FocusBlue, fontWeight = FontWeight.Black)
+                                IconButton(onClick = { showDeleteAllConfirm = true }, modifier = Modifier.size(32.dp)) {
+                                    Icon(Icons.Default.DeleteSweep, null, tint = Color.Red)
                                 }
                             }
                         }
                         
                         items(expiringProducts, key = { it.id }) { product ->
-                            ExpiringProductCard(
-                                product = product,
-                                onDelete = { productToDelete = it }
-                            )
+                            ExpiringProductProCard(product, onDelete = { productToDelete = it })
                         }
                     }
                 }
             }
+        }
+
+        if (showDeleteAllConfirm) {
+            AlertDialog(
+                onDismissRequest = { showDeleteAllConfirm = false },
+                title = { Text("¿Vaciar Alertas?") },
+                text = { Text("Se eliminarán todos los productos listados. Esta acción es definitiva y limpiará el stock. ¿Confirmar?") },
+                confirmButton = {
+                    Button(onClick = { vencimientoViewModel.deleteAllVisible(); showDeleteAllConfirm = false }, colors = ButtonDefaults.buttonColors(containerColor = Color.Red)) {
+                        Text("Limpiar Todo", color = Color.White)
+                    }
+                },
+                dismissButton = { TextButton(onClick = { showDeleteAllConfirm = false }) { Text("Cancelar") } }
+            )
         }
 
         if (productToDelete != null) {
@@ -131,117 +116,72 @@ fun VencimientoScreen(vencimientoViewModel: VencimientoViewModel = viewModel()) 
                 title = { Text("Eliminar Producto") },
                 text = { Text("¿Deseas eliminar '${productToDelete?.name}' definitivamente?") },
                 confirmButton = {
-                    Button(
-                        onClick = { 
-                            vencimientoViewModel.deleteProduct(productToDelete!!.id)
-                            productToDelete = null
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                    ) { Text("Eliminar", color = Color.White) }
+                    Button(onClick = { vencimientoViewModel.deleteProduct(productToDelete!!.id); productToDelete = null }, colors = ButtonDefaults.buttonColors(containerColor = Color.Red)) {
+                        Text("Eliminar", color = Color.White)
+                    }
                 },
-                dismissButton = {
-                    TextButton(onClick = { productToDelete = null }) { Text("Cancelar") }
-                }
-            )
-        }
-
-        if (showDeleteAllConfirm) {
-            AlertDialog(
-                onDismissRequest = { showDeleteAllConfirm = false },
-                title = { Text("Eliminar Todo") },
-                text = { Text("¿Borrar todos los productos listados aquí? Esta acción no se puede deshacer.") },
-                confirmButton = {
-                    Button(
-                        onClick = { 
-                            vencimientoViewModel.deleteAllVisible()
-                            showDeleteAllConfirm = false
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                    ) { Text("Sí, eliminar todo", color = Color.White) }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showDeleteAllConfirm = false }) { Text("Cancelar") }
-                }
+                dismissButton = { TextButton(onClick = { productToDelete = null }) { Text("Cancelar") } }
             )
         }
     }
 }
 
 @Composable
-fun ExpiringProductCard(product: Product, onDelete: (Product) -> Unit) {
-    val isExpired = remember(product.expiryDate) { checkIsExpired(product.expiryDate) }
+fun ExpiringProductProCard(product: Product, onDelete: (Product) -> Unit) {
+    val daysLeft = remember(product.expiryDate) { calculateDaysLeft(product.expiryDate) }
     
-    // Colores dinámicos: Rojo para vencido, Amarillo para próximo
-    val accentColor = if (isExpired) Color(0xFFE53935) else Color(0xFFFFB300)
-    val bgColor = accentColor.copy(alpha = if (isExpired) 0.08f else 0.05f)
+    val (statusText, statusColor) = when {
+        daysLeft <= 0 -> "VENCIDO" to Color(0xFFE53935)
+        daysLeft <= 3 -> "ALERTA (3D)" to Color(0xFFFB8C00)
+        else -> "AVISO (7D)" to Color(0xFFFBC02D)
+    }
+
+    val bgColor = statusColor.copy(alpha = 0.08f)
 
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = bgColor),
-        border = androidx.compose.foundation.BorderStroke(0.5.dp, accentColor.copy(alpha = 0.3f))
+        border = androidx.compose.foundation.BorderStroke(0.5.dp, statusColor.copy(alpha = 0.4f))
     ) {
-        Row(
-            modifier = Modifier.padding(14.dp).fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier.size(42.dp).background(accentColor.copy(alpha = 0.15f), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
+        Row(modifier = Modifier.padding(14.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Box(modifier = Modifier.size(42.dp).background(statusColor.copy(alpha = 0.15f), CircleShape), contentAlignment = Alignment.Center) {
                 Icon(
-                    imageVector = if (isExpired) Icons.Default.ReportProblem else Icons.Default.History,
-                    contentDescription = null, 
-                    tint = accentColor, 
+                    imageVector = if (daysLeft <= 3) Icons.Default.ReportProblem else Icons.Default.History, 
+                    null, 
+                    tint = statusColor, 
                     modifier = Modifier.size(22.dp)
                 )
             }
-
             Spacer(modifier = Modifier.width(14.dp))
-
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = product.name, 
-                    fontWeight = FontWeight.ExtraBold, 
-                    fontSize = 16.sp,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 2.dp)) {
-                    Text(
-                        text = if (isExpired) "VENCIDO: " else "VENCE EN BREVE: ",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = accentColor
-                    )
-                    Text(
-                        text = product.expiryDate ?: "--/--/----",
-                        color = accentColor,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
+                Text(product.name, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
+                Text(statusText, fontSize = 10.sp, color = statusColor, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
             }
-
+            Column(horizontalAlignment = Alignment.End) {
+                Text(product.expiryDate ?: "--/--/----", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
+                Text(if(daysLeft <= 0) "Expiró" else "Faltan $daysLeft días", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Spacer(modifier = Modifier.width(8.dp))
             IconButton(onClick = { onDelete(product) }) {
-                Icon(Icons.Default.DeleteOutline, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(Icons.Default.DeleteOutline, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
 }
 
-private fun checkIsExpired(dateStr: String?): Boolean {
-    if (dateStr == null) return false
+private fun calculateDaysLeft(dateStr: String?): Int {
+    if (dateStr == null) return 999
     return try {
         val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-        val expiryDate = sdf.parse(dateStr) ?: return false
+        val expiryDate = sdf.parse(dateStr) ?: return 999
         val today = Calendar.getInstance().apply {
             set(Calendar.HOUR_OF_DAY, 0)
             set(Calendar.MINUTE, 0)
             set(Calendar.SECOND, 0)
             set(Calendar.MILLISECOND, 0)
         }.time
-        expiryDate.before(today) || expiryDate == today
-    } catch (e: Exception) {
-        false
-    }
+        val diff = expiryDate.time - today.time
+        (diff / (1000 * 60 * 60 * 24)).toInt()
+    } catch (e: Exception) { 999 }
 }

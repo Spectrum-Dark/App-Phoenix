@@ -7,6 +7,8 @@ import com.spectrum.phoenix.logic.almacen.ProductRepository
 import com.spectrum.phoenix.logic.clientes.ClientRepository
 import com.spectrum.phoenix.logic.clientes.CreditRepository
 import com.spectrum.phoenix.logic.ventas.SaleRepository
+import com.spectrum.phoenix.ui.components.ToastController
+import com.spectrum.phoenix.ui.components.ToastType
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -20,69 +22,76 @@ class ReportesViewModel : ViewModel() {
 
     private fun getToday(): String = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())
 
-    fun generateReport(context: Context, type: String) {
-        val generator = ReportGenerator(context)
+    fun generateReport(context: Context, type: String, toast: ToastController) {
+        val generator = ReportGenerator(context, toast)
         val today = getToday()
         
         viewModelScope.launch {
             when (type) {
-                // CATEGORÍA: INVENTARIO
                 "ENTRADAS" -> {
                     val entries = productRepo.getEntries().first()
-                    // FILTRO HOY: Solo entradas de este día
-                    val data = entries.filter { it.date.startsWith(today) }.map { listOf(it.date.takeLast(8), it.productName, it.quantity.toString()) }
-                    generator.generatePDF("Entradas de Hoy ($today)", listOf("Hora", "Producto", "Cant."), data)
+                    val data = entries.filter { it.date.startsWith(today) }.map { listOf(it.date.takeLast(11), it.productName, it.quantity.toString()) }
+                    if (data.isNotEmpty()) generator.generatePDF("Entradas de Hoy ($today)", listOf("Hora", "Producto", "Cant."), data)
+                    else toast.show("No hay entradas registradas hoy", ToastType.INFO)
                 }
                 "PROXIMOS_VENCER" -> {
                     val products = productRepo.getProducts().first()
                     val soon = products.filter { isExpiringSoon(it.expiryDate) }
                     val data = soon.map { listOf(it.name, it.expiryDate ?: "N/A", it.quantity.toString()) }
-                    generator.generatePDF("Próximos a Vencer (Corte $today)", listOf("Producto", "Vence", "Stock"), data)
+                    if (data.isNotEmpty()) generator.generatePDF("Próximos a Vencer", listOf("Producto", "Vence", "Stock"), data)
+                    else toast.show("No hay productos por vencer", ToastType.SUCCESS)
                 }
                 "VENCIDOS" -> {
                     val products = productRepo.getProducts().first()
                     val expired = products.filter { isExpired(it.expiryDate) }
                     val data = expired.map { listOf(it.name, it.expiryDate ?: "N/A", it.quantity.toString()) }
-                    generator.generatePDF("Productos Vencidos (Corte $today)", listOf("Producto", "Venció", "Stock"), data)
+                    if (data.isNotEmpty()) generator.generatePDF("Productos Vencidos", listOf("Producto", "Venció", "Stock"), data)
+                    else toast.show("No hay productos vencidos", ToastType.SUCCESS)
                 }
                 "TODOS_PRODUCTOS" -> {
                     val products = productRepo.getProducts().first()
                     val data = products.map { listOf(it.name, it.quantity.toString(), "C$ ${String.format("%.2f", it.price)}") }
-                    generator.generatePDF("Inventario Total ($today)", listOf("Producto", "Stock", "Precio"), data)
+                    if (data.isNotEmpty()) generator.generatePDF("Inventario Total", listOf("Producto", "Stock", "Precio"), data)
+                    else toast.show("Inventario vacío", ToastType.INFO)
                 }
-
-                // CATEGORÍA: CLIENTES
                 "CLIENTES_CREDITOS" -> {
                     val credits = creditRepo.getCredits().first()
                     val active = credits.filter { it.totalDebt > 0 }
                     val data = active.map { listOf(it.clientName, "C$ ${String.format("%.2f", it.totalDebt)}", it.lastUpdate.take(10)) }
-                    val total = active.sumOf { it.totalDebt }
-                    generator.generatePDF("Deudores Activos ($today)", listOf("Nombre", "Deuda", "F. Act."), data, listOf("TOTAL DEUDAS", "C$ ${String.format("%.2f", total)}", ""))
+                    if (data.isNotEmpty()) {
+                        val total = active.sumOf { it.totalDebt }
+                        generator.generatePDF("Afiliados con Crédito", listOf("Nombre", "Deuda", "F. Act."), data, listOf("TOTAL DEUDAS", "C$ ${String.format("%.2f", total)}", ""))
+                    } else toast.show("No hay clientes con deuda", ToastType.SUCCESS)
                 }
                 "TODOS_CLIENTES" -> {
                     val clients = clientRepo.getClients().first()
                     val data = clients.map { listOf(it.name + " " + it.lastName, it.registrationDate) }
-                    generator.generatePDF("Lista de Afiliados ($today)", listOf("Nombre", "F. Registro"), data)
+                    if (data.isNotEmpty()) generator.generatePDF("Todos los Clientes", listOf("Nombre", "F. Registro"), data)
+                    else toast.show("No hay clientes registrados", ToastType.INFO)
                 }
-
-                // CATEGORÍA: FINANZAS Y VENTAS (FILTRADAS POR HOY)
                 "VENTAS_GENERALES" -> {
                     val sales = saleRepo.getSales().first().filter { it.clientId == null && it.date.startsWith(today) }
-                    val data = sales.flatMap { s -> s.items.map { i -> listOf(s.date.takeLast(8), i.productName, i.quantity.toString(), "C$ ${String.format("%.2f", i.subtotal)}") } }
-                    val total = sales.sumOf { it.total }
-                    generator.generatePDF("Ventas Contado de Hoy ($today)", listOf("Hora", "Producto", "Cant.", "Subt."), data, listOf("TOTAL VENTAS", "", "", "C$ ${String.format("%.2f", total)}"))
+                    val data = sales.flatMap { s -> s.items.map { i -> listOf(s.date.takeLast(11), i.productName, i.quantity.toString(), "C$ ${String.format("%.2f", i.subtotal)}") } }
+                    if (data.isNotEmpty()) {
+                        val total = sales.sumOf { it.total }
+                        generator.generatePDF("Ventas Contado Hoy", listOf("Hora", "Producto", "Cant.", "Subt."), data, listOf("TOTAL VENTAS", "", "", "C$ ${String.format("%.2f", total)}"))
+                    } else toast.show("No hay ventas de contado hoy", ToastType.INFO)
                 }
                 "VENTAS_CREDITOS" -> {
                     val sales = saleRepo.getSales().first().filter { it.clientId != null && it.date.startsWith(today) }
-                    val data = sales.flatMap { s -> s.items.map { i -> listOf(s.clientName, i.productName, "C$ ${String.format("%.2f", i.subtotal)}", s.date.takeLast(8)) } }
-                    val total = sales.sumOf { it.total }
-                    generator.generatePDF("Ventas Crédito de Hoy ($today)", listOf("Cliente", "Producto", "Subt.", "Hora"), data, listOf("TOTAL CRÉDITOS", "", "C$ ${String.format("%.2f", total)}", ""))
+                    val data = sales.flatMap { s -> s.items.map { i -> listOf(s.clientName, i.productName, "C$ ${String.format("%.2f", i.subtotal)}", s.date.takeLast(11)) } }
+                    if (data.isNotEmpty()) {
+                        val total = sales.sumOf { it.total }
+                        generator.generatePDF("Ventas Crédito Hoy", listOf("Cliente", "Producto", "Subt.", "Hora"), data, listOf("TOTAL CRÉDITOS", "", "C$ ${String.format("%.2f", total)}", ""))
+                    } else toast.show("No hay ventas al crédito hoy", ToastType.INFO)
                 }
                 "VENTAS_TOTALES" -> {
                     val sales = saleRepo.getSales().first().filter { it.date.startsWith(today) }
-                    val data = sales.flatMap { s -> s.items.map { i -> listOf(i.productName, i.quantity.toString(), "C$ ${String.format("%.2f", i.subtotal)}", s.date.takeLast(8)) } }
-                    val total = sales.sumOf { it.total }
-                    generator.generatePDF("Resumen de Ventas Hoy ($today)", listOf("Producto", "Cant.", "Subtotal", "Hora"), data, listOf("TOTAL GENERAL", "", "C$ ${String.format("%.2f", total)}", ""))
+                    val data = sales.flatMap { s -> s.items.map { i -> listOf(i.productName, i.quantity.toString(), "C$ ${String.format("%.2f", i.subtotal)}", s.date.takeLast(11)) } }
+                    if (data.isNotEmpty()) {
+                        val total = sales.sumOf { it.total }
+                        generator.generatePDF("Ventas Totales Hoy", listOf("Producto", "Cant.", "Subtotal", "Hora"), data, listOf("TOTAL HOY", "", "C$ ${String.format("%.2f", total)}", ""))
+                    } else toast.show("No se han realizado ventas hoy", ToastType.INFO)
                 }
             }
         }

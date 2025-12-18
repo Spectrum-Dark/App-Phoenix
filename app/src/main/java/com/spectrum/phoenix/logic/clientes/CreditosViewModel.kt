@@ -3,7 +3,6 @@ package com.spectrum.phoenix.logic.clientes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.spectrum.phoenix.logic.model.Credit
-import com.spectrum.phoenix.logic.model.CreditMovement
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
@@ -30,9 +29,9 @@ class CreditosViewModel : ViewModel() {
         _searchQuery.value = query
     }
 
-    fun registrarAbono(clientId: String, amount: Double, description: String) {
+    fun clearAllCredits() {
         viewModelScope.launch {
-            _opResult.value = repository.addAbono(clientId, amount, description)
+            _opResult.value = repository.clearAll()
         }
     }
 

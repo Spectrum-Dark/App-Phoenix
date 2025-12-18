@@ -31,7 +31,7 @@ class VencimientoViewModel : ViewModel() {
                 try {
                     val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
                     val expiryDate = sdf.parse(dateStr)
-                    expiryDate?.let { isExpiringSoon(it) } ?: false
+                    expiryDate?.let { shouldShow(it) } ?: false
                 } catch (e: Exception) {
                     false
                 }
@@ -52,17 +52,19 @@ class VencimientoViewModel : ViewModel() {
         _searchQuery.value = newQuery.replace("\n", "")
     }
 
-    private fun isExpiringSoon(expiryDate: Date): Boolean {
+    // AHORA DETECTAMOS HASTA 7 DÍAS ANTES
+    private fun shouldShow(expiryDate: Date): Boolean {
         val calendar = Calendar.getInstance()
+        calendar.set(Calendar.HOUR_OF_DAY, 0)
+        calendar.set(Calendar.MINUTE, 0)
+        calendar.set(Calendar.SECOND, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
         val today = calendar.time
         
-        // Añadimos 3 días a la fecha actual
-        calendar.add(Calendar.DAY_OF_YEAR, 3)
-        val limitDate = calendar.time
+        calendar.add(Calendar.DAY_OF_YEAR, 7)
+        val limit7Days = calendar.time
         
-        // Es pronto si la fecha de vencimiento es antes o igual a hoy + 3 días
-        // Y también si ya venció (expiryDate < today)
-        return expiryDate.before(limitDate) || SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(expiryDate) == SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(limitDate)
+        return expiryDate.before(limit7Days) || expiryDate == limit7Days
     }
 
     fun deleteProduct(productId: String) {
