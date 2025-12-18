@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -57,7 +59,7 @@ fun MainScreen(navController: NavController) {
             MenuItem("vencimiento", "Vencimiento", Icons.Default.Event)
         )),
         MenuItem("clientes", "Clientes", Icons.Default.People, children = listOf(
-            MenuItem("lista", "Lista", Icons.Default.List),
+            MenuItem("lista", "Lista", Icons.AutoMirrored.Filled.List),
             MenuItem("creditos", "Creditos", Icons.Default.CreditCard)
         ))
     )
@@ -83,6 +85,11 @@ fun MainScreen(navController: NavController) {
                                 icon = { Icon(item.icon, contentDescription = item.title) },
                                 label = { Text(item.title) },
                                 selected = item == selectedItem,
+                                colors = NavigationDrawerItemDefaults.colors(
+                                    selectedContainerColor = MaterialTheme.colorScheme.tertiary,
+                                    selectedIconColor = MaterialTheme.colorScheme.onTertiary,
+                                    selectedTextColor = MaterialTheme.colorScheme.onTertiary
+                                ),
                                 onClick = {
                                     scope.launch { drawerState.close() }
                                     selectedItem = item
@@ -91,7 +98,7 @@ fun MainScreen(navController: NavController) {
                                         launchSingleTop = true
                                     }
                                 },
-                                modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                                modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding).padding(vertical = 4.dp)
                             )
                         } else {
                             NavigationDrawerItem(
@@ -112,7 +119,7 @@ fun MainScreen(navController: NavController) {
                                 onClick = {
                                     expandedItems = if (expandedItems.contains(item.id)) expandedItems - item.id else expandedItems + item.id
                                 },
-                                modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                                modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding).padding(vertical = 4.dp)
                             )
 
                             AnimatedVisibility(visible = expandedItems.contains(item.id)) {
@@ -122,6 +129,11 @@ fun MainScreen(navController: NavController) {
                                             icon = { Icon(child.icon, contentDescription = child.title) },
                                             label = { Text(child.title) },
                                             selected = child == selectedItem,
+                                            colors = NavigationDrawerItemDefaults.colors(
+                                                selectedContainerColor = MaterialTheme.colorScheme.tertiary,
+                                                selectedIconColor = MaterialTheme.colorScheme.onTertiary,
+                                                selectedTextColor = MaterialTheme.colorScheme.onTertiary
+                                            ),
                                             onClick = {
                                                 scope.launch { drawerState.close() }
                                                 selectedItem = child
@@ -130,7 +142,7 @@ fun MainScreen(navController: NavController) {
                                                     launchSingleTop = true
                                                 }
                                             },
-                                            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                                            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding).padding(vertical = 4.dp)
                                         )
                                     }
                                 }
@@ -159,7 +171,7 @@ fun MainScreen(navController: NavController) {
                             )
                             DropdownMenuItem(
                                 text = { Text("Cerrar sesión") },
-                                leadingIcon = { Icon(Icons.Default.Logout, contentDescription = "Cerrar sesión") },
+                                leadingIcon = { Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Cerrar sesión") },
                                 onClick = {
                                     scope.launch { drawerState.close() }
                                     navController.navigate("login") {

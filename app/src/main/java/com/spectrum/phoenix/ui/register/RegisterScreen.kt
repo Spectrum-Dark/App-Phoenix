@@ -21,7 +21,6 @@ import com.spectrum.phoenix.ui.theme.DarkGray
 import com.spectrum.phoenix.ui.theme.FocusBlue
 import com.spectrum.phoenix.ui.theme.PhoenixTheme
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegisterScreen(navController: NavController) {
     var email by remember { mutableStateOf("") }
@@ -54,13 +53,15 @@ fun RegisterScreen(navController: NavController) {
                 modifier = Modifier.fillMaxWidth(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                 singleLine = true,
-                colors = TextFieldDefaults.outlinedTextFieldColors(
+                colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = FocusBlue,
                     cursorColor = FocusBlue,
                     focusedLeadingIconColor = FocusBlue,
                     focusedLabelColor = FocusBlue,
                     unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    unfocusedLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    unfocusedLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent
                 )
             )
 
@@ -82,13 +83,15 @@ fun RegisterScreen(navController: NavController) {
                         Icon(imageVector = image, description)
                     }
                 },
-                colors = TextFieldDefaults.outlinedTextFieldColors(
+                colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = FocusBlue,
                     cursorColor = FocusBlue,
                     focusedLeadingIconColor = FocusBlue,
                     focusedLabelColor = FocusBlue,
                     unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    unfocusedLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    unfocusedLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent
                 )
             )
 
@@ -110,13 +113,15 @@ fun RegisterScreen(navController: NavController) {
                         Icon(imageVector = image, description)
                     }
                 },
-                colors = TextFieldDefaults.outlinedTextFieldColors(
+                colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = FocusBlue,
                     cursorColor = FocusBlue,
                     focusedLeadingIconColor = FocusBlue,
                     focusedLabelColor = FocusBlue,
                     unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    unfocusedLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    unfocusedLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent
                 )
             )
 
