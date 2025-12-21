@@ -5,8 +5,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -24,7 +22,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -65,7 +62,6 @@ fun MainScreen(navController: NavController, dashboardViewModel: DashboardViewMo
     val sessionManager = remember { SessionManager(context) }
     val isAdmin = sessionManager.getUserRole() == "admin"
     
-    // ESTADO DE NOTIFICACIONES CON PERSISTENCIA
     val lowStockList by dashboardViewModel.lowStockProducts.collectAsStateWithLifecycle()
     var showNotifMenu by remember { mutableStateOf(false) }
     
@@ -83,19 +79,24 @@ fun MainScreen(navController: NavController, dashboardViewModel: DashboardViewMo
         MenuItem("reportes", "Centro de Inteligencia", Icons.Default.Assessment)
     ))
 
-    val configChildren = mutableListOf(
+    // SECCIÓN PERFILES
+    val perfilesChildren = mutableListOf(
         MenuItem("perfil", "Mi Perfil de Usuario", Icons.Default.Person)
     )
-    
     if (isAdmin) {
-        configChildren.add(MenuItem("usuarios", "Gestión de Usuarios", Icons.Default.Group))
-        configChildren.add(MenuItem("update", "Sistema de Actualización", Icons.Default.SystemUpdate))
-        configChildren.add(MenuItem("backup", "Respaldo de Datos", Icons.Default.CloudUpload))
+        perfilesChildren.add(MenuItem("usuarios", "Gestión de Usuarios", Icons.Default.Group))
     }
+    val perfilesPanel = MenuItem("perfiles_panel", "Perfiles", Icons.Default.Badge, children = perfilesChildren)
 
-    val configPanel = MenuItem("configuracion", "Ajustes y Configuración", Icons.Default.Settings, children = configChildren)
+    // SECCIÓN CONFIGURACIÓN
+    val configChildren = mutableListOf<MenuItem>()
+    if (isAdmin) {
+        configChildren.add(MenuItem("backup", "Respaldo de Datos", Icons.Default.CloudUpload))
+        configChildren.add(MenuItem("update", "Sistema de Actualización", Icons.Default.SystemUpdate))
+    }
+    val configPanel = MenuItem("configuracion_panel", "Configuración", Icons.Default.Settings, children = configChildren)
 
-    val menuItems = listOf(
+    val menuItems = mutableListOf(
         adminPanel,
         MenuItem("productos", "Gestión de Inventario", Icons.Default.Inventory, children = listOf(
             MenuItem("almacen", "Control de Stock", Icons.Default.Warehouse),
@@ -105,15 +106,18 @@ fun MainScreen(navController: NavController, dashboardViewModel: DashboardViewMo
             MenuItem("lista", "Afiliados Registrados", Icons.AutoMirrored.Filled.List),
             MenuItem("creditos", "Estado de Cuentas", Icons.Default.CreditCard)
         )),
-        configPanel
+        perfilesPanel
     )
+
+    if (isAdmin) {
+        menuItems.add(configPanel)
+    }
 
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     val mainContentNavController = rememberNavController()
 
     var selectedItem by remember { mutableStateOf<MenuItem?>(adminPanel.children[0]) }
-    
     var expandedItems by remember { mutableStateOf(emptySet<String>()) }
 
     LaunchedEffect(mainContentNavController.currentBackStackEntry) {
@@ -149,76 +153,52 @@ fun MainScreen(navController: NavController, dashboardViewModel: DashboardViewMo
                                 .verticalScroll(rememberScrollState())
                         ) {
                             menuItems.forEach { item ->
-                                if (item.children.isEmpty()) {
-                                    NavigationDrawerItem(
-                                        icon = { Icon(item.icon, contentDescription = null, modifier = Modifier.size(22.dp)) },
-                                        label = { Text(item.title, fontWeight = if (item == selectedItem) FontWeight.ExtraBold else FontWeight.Medium, fontSize = 14.sp) },
-                                        selected = item == selectedItem,
-                                        colors = NavigationDrawerItemDefaults.colors(
-                                            selectedContainerColor = FocusBlue.copy(alpha = 0.1f),
-                                            selectedIconColor = FocusBlue,
-                                            selectedTextColor = FocusBlue,
-                                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
-                                        ),
-                                        onClick = {
-                                            scope.launch { drawerState.close() }
-                                            selectedItem = item
-                                            mainContentNavController.navigate(item.id) {
-                                                popUpTo(mainContentNavController.graph.startDestinationId)
-                                                launchSingleTop = true
-                                            }
-                                        },
-                                        modifier = Modifier.height(48.dp).padding(vertical = 2.dp)
-                                    )
-                                } else {
-                                    val isExpanded = expandedItems.contains(item.id)
-                                    NavigationDrawerItem(
-                                        label = {
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Text(item.title, modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                                Icon(
-                                                    imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                                                    contentDescription = null,
-                                                    modifier = Modifier.size(18.dp)
-                                                )
-                                            }
-                                        },
-                                        icon = { Icon(item.icon, contentDescription = null, modifier = Modifier.size(22.dp)) },
-                                        selected = false,
-                                        onClick = {
-                                            expandedItems = if (isExpanded) expandedItems - item.id else expandedItems + item.id
-                                        },
-                                        colors = NavigationDrawerItemDefaults.colors(
-                                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
-                                        ),
-                                        modifier = Modifier.height(48.dp).padding(vertical = 2.dp)
-                                    )
+                                val isExpanded = expandedItems.contains(item.id)
+                                NavigationDrawerItem(
+                                    label = {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(item.title, modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                            Icon(
+                                                imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                    },
+                                    icon = { Icon(item.icon, contentDescription = null, modifier = Modifier.size(22.dp)) },
+                                    selected = false,
+                                    onClick = {
+                                        expandedItems = if (isExpanded) expandedItems - item.id else expandedItems + item.id
+                                    },
+                                    colors = NavigationDrawerItemDefaults.colors(
+                                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                    ),
+                                    modifier = Modifier.height(48.dp).padding(vertical = 2.dp)
+                                )
 
-                                    AnimatedVisibility(visible = isExpanded) {
-                                        Column(modifier = Modifier.padding(start = 16.dp)) {
-                                            item.children.forEach { child ->
-                                                NavigationDrawerItem(
-                                                    icon = { Icon(child.icon, contentDescription = null, modifier = Modifier.size(18.dp)) },
-                                                    label = { Text(child.title, fontSize = 13.sp, fontWeight = if (child == selectedItem) FontWeight.Bold else FontWeight.Normal) },
-                                                    selected = child == selectedItem,
-                                                    colors = NavigationDrawerItemDefaults.colors(
-                                                        selectedContainerColor = FocusBlue.copy(alpha = 0.1f),
-                                                        selectedIconColor = FocusBlue,
-                                                        selectedTextColor = FocusBlue
-                                                    ),
-                                                    onClick = {
-                                                        scope.launch { drawerState.close() }
-                                                        selectedItem = child
-                                                        mainContentNavController.navigate(child.id) {
-                                                            popUpTo(mainContentNavController.graph.startDestinationId)
-                                                            launchSingleTop = true
-                                                        }
-                                                    },
-                                                    modifier = Modifier.height(40.dp).padding(vertical = 2.dp)
-                                                )
-                                            }
+                                AnimatedVisibility(visible = isExpanded) {
+                                    Column(modifier = Modifier.padding(start = 16.dp)) {
+                                        item.children.forEach { child ->
+                                            NavigationDrawerItem(
+                                                icon = { Icon(child.icon, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                                                label = { Text(child.title, fontSize = 13.sp, fontWeight = if (child == selectedItem) FontWeight.Bold else FontWeight.Normal) },
+                                                selected = child == selectedItem,
+                                                colors = NavigationDrawerItemDefaults.colors(
+                                                    selectedContainerColor = FocusBlue.copy(alpha = 0.1f),
+                                                    selectedIconColor = FocusBlue,
+                                                    selectedTextColor = FocusBlue
+                                                ),
+                                                onClick = {
+                                                    scope.launch { drawerState.close() }
+                                                    selectedItem = child
+                                                    mainContentNavController.navigate(child.id) {
+                                                        popUpTo(mainContentNavController.graph.startDestinationId)
+                                                        launchSingleTop = true
+                                                    }
+                                                },
+                                                modifier = Modifier.height(40.dp).padding(vertical = 2.dp)
+                                            )
                                         }
                                     }
                                 }
