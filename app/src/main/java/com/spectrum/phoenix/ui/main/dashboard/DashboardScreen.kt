@@ -43,6 +43,7 @@ fun DashboardScreen(dashboardViewModel: DashboardViewModel = viewModel()) {
                 .background(MaterialTheme.colorScheme.background)
                 .padding(horizontal = 16.dp)
         ) {
+            // --- PARTE ESTÁTICA ---
             Spacer(modifier = Modifier.height(12.dp))
             
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -98,6 +99,7 @@ fun DashboardScreen(dashboardViewModel: DashboardViewModel = viewModel()) {
                 Text("ACTIVIDAD RECIENTE", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Black, color = FocusBlue)
             }
 
+            // --- PARTE SCROLLABLE (ACTIVIDAD RECIENTE) ---
             Box(modifier = Modifier.weight(1f)) {
                 if (logs.isEmpty()) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -106,10 +108,11 @@ fun DashboardScreen(dashboardViewModel: DashboardViewModel = viewModel()) {
                 } else {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
                         contentPadding = PaddingValues(top = 8.dp, bottom = 20.dp)
                     ) {
-                        items(logs) { log ->
-                            ActivityItem(log.action, log.details, log.time) // USAR log.time DIRECTAMENTE
+                        items(logs, key = { it.id }) { log ->
+                            ActivityItem(log.action, log.details, log.time, log.userName)
                         }
                     }
                 }
@@ -152,7 +155,7 @@ fun StatRow(label: String, value: String, icon: ImageVector) {
 }
 
 @Composable
-fun ActivityItem(action: String, details: String, time: String) {
+fun ActivityItem(action: String, details: String, time: String, userName: String) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = Color.Transparent)
@@ -164,7 +167,10 @@ fun ActivityItem(action: String, details: String, time: String) {
             Spacer(modifier = Modifier.width(12.dp))
             Column {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Text(action, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface)
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(action, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface)
+                        Text(text = "Por: $userName", fontSize = 10.sp, color = FocusBlue, fontWeight = FontWeight.SemiBold)
+                    }
                     Text(
                         text = time, 
                         fontSize = 10.sp, 

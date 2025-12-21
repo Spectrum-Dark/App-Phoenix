@@ -7,7 +7,9 @@ data class Sale(
     val items: List<SaleItem> = emptyList(),
     val total: Double = 0.0,
     val date: String = "",
-    val timestamp: Long = System.currentTimeMillis()
+    val timestamp: Long = System.currentTimeMillis(),
+    val sellerId: String = "",
+    val sellerName: String = ""
 )
 
 data class SaleItem(

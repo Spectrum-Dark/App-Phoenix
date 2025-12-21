@@ -25,6 +25,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.spectrum.phoenix.logic.clientes.CreditosViewModel
 import com.spectrum.phoenix.logic.model.Credit
+import com.spectrum.phoenix.logic.session.SessionManager
 import com.spectrum.phoenix.ui.components.LocalToastController
 import com.spectrum.phoenix.ui.components.ToastType
 import com.spectrum.phoenix.ui.theme.FocusBlue
@@ -36,7 +37,10 @@ fun CreditosScreen(creditosViewModel: CreditosViewModel = viewModel()) {
     val credits by creditosViewModel.filteredCredits.collectAsStateWithLifecycle()
     val searchQuery by creditosViewModel.searchQuery.collectAsStateWithLifecycle()
     val result by creditosViewModel.opResult.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     val toast = LocalToastController.current 
+    val sessionManager = remember { SessionManager(context) }
+    val isAdmin = sessionManager.getUserRole() == "admin"
     
     var selectedCreditForDetails by remember { mutableStateOf<Credit?>(null) }
     var showClearAllConfirm by remember { mutableStateOf(false) }
@@ -77,8 +81,10 @@ fun CreditosScreen(creditosViewModel: CreditosViewModel = viewModel()) {
                     item {
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                             Text("ESTADO DE CUENTAS ACTIVO", style = MaterialTheme.typography.labelLarge, color = FocusBlue, fontWeight = FontWeight.Black)
-                            IconButton(onClick = { showClearAllConfirm = true }, modifier = Modifier.size(32.dp)) {
-                                Icon(Icons.Default.DeleteSweep, null, tint = Color.Red)
+                            if (isAdmin) {
+                                IconButton(onClick = { showClearAllConfirm = true }, modifier = Modifier.size(32.dp)) {
+                                    Icon(Icons.Default.DeleteSweep, null, tint = Color.Red)
+                                }
                             }
                         }
                     }
@@ -89,7 +95,7 @@ fun CreditosScreen(creditosViewModel: CreditosViewModel = viewModel()) {
             }
         }
 
-        if (showClearAllConfirm) {
+        if (showClearAllConfirm && isAdmin) {
             AlertDialog(
                 onDismissRequest = { showClearAllConfirm = false },
                 title = { Text("¿Liquidar Todas las Cuentas?") },

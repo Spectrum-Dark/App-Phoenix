@@ -26,28 +26,36 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
 import com.spectrum.phoenix.logic.almacen.ProductViewModel
 import com.spectrum.phoenix.logic.model.Product
+import com.spectrum.phoenix.logic.session.SessionManager
 import com.spectrum.phoenix.ui.components.LocalToastController
 import com.spectrum.phoenix.ui.components.ToastType
 import com.spectrum.phoenix.ui.theme.FocusBlue
 import com.spectrum.phoenix.ui.theme.PhoenixTheme
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AlmacenScreen(productViewModel: ProductViewModel = viewModel()) {
+fun AlmacenScreen(navController: NavController, productViewModel: ProductViewModel = viewModel()) {
     val products by productViewModel.filteredProducts.collectAsStateWithLifecycle()
     val searchQuery by productViewModel.searchQuery.collectAsStateWithLifecycle()
     val result by productViewModel.result.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val toast = LocalToastController.current
+    val sessionManager = remember { SessionManager(context) }
+    val userRole = sessionManager.getUserRole()
+    val isAdmin = userRole == "admin"
     
     var showAddDialog by remember { mutableStateOf(false) }
     var productToEdit by remember { mutableStateOf<Product?>(null) }
@@ -97,7 +105,21 @@ fun AlmacenScreen(productViewModel: ProductViewModel = viewModel()) {
                             Text("${products.size} productos registrados", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 4.dp))
                         }
                         items(products, key = { it.id }) { product ->
-                            ProductCard(product, onEdit = { productToEdit = it }, onDelete = { productToDelete = it })
+                            ProductCard(
+                                product = product, 
+                                isAdmin = isAdmin,
+                                onEdit = { productToEdit = it }, 
+                                onDelete = { productToDelete = it },
+                                onGenerateBarcode = { 
+                                    try {
+                                        val encodedId = URLEncoder.encode(product.id, StandardCharsets.UTF_8.toString())
+                                        val encodedName = URLEncoder.encode(product.name, StandardCharsets.UTF_8.toString())
+                                        navController.navigate("barcode/$encodedId/$encodedName")
+                                    } catch (e: Exception) {
+                                        toast.show("Error al abrir visor: ${e.message}", ToastType.ERROR)
+                                    }
+                                }
+                            )
                         }
                     }
                 }
@@ -118,7 +140,7 @@ fun AlmacenScreen(productViewModel: ProductViewModel = viewModel()) {
             })
         }
 
-        if (productToDelete != null) {
+        if (productToDelete != null && isAdmin) {
             AlertDialog(
                 onDismissRequest = { productToDelete = null },
                 title = { Text("Eliminar Producto") },
@@ -135,7 +157,7 @@ fun AlmacenScreen(productViewModel: ProductViewModel = viewModel()) {
 }
 
 @Composable
-fun ProductCard(product: Product, onEdit: (Product) -> Unit, onDelete: (Product) -> Unit) {
+fun ProductCard(product: Product, isAdmin: Boolean, onEdit: (Product) -> Unit, onDelete: (Product) -> Unit, onGenerateBarcode: (Product) -> Unit) {
     var showMenu by remember { mutableStateOf(false) }
     val priceColor = Color(0xFF4CAF50)
     val accentColor = FocusBlue
@@ -167,7 +189,10 @@ fun ProductCard(product: Product, onEdit: (Product) -> Unit, onDelete: (Product)
                         IconButton(onClick = { showMenu = true }) { Icon(Icons.Default.MoreVert, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) }
                         DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
                             DropdownMenuItem(text = { Text("Editar") }, leadingIcon = { Icon(Icons.Default.Edit, null, modifier = Modifier.size(18.dp)) }, onClick = { showMenu = false; onEdit(product) })
-                            DropdownMenuItem(text = { Text("Eliminar", color = MaterialTheme.colorScheme.error) }, leadingIcon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp)) }, onClick = { showMenu = false; onDelete(product) })
+                            DropdownMenuItem(text = { Text("Código de Barras") }, leadingIcon = { Icon(Icons.Default.QrCode, null, modifier = Modifier.size(18.dp)) }, onClick = { showMenu = false; onGenerateBarcode(product) })
+                            if (isAdmin) {
+                                DropdownMenuItem(text = { Text("Eliminar", color = MaterialTheme.colorScheme.error) }, leadingIcon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp)) }, onClick = { showMenu = false; onDelete(product) })
+                            }
                         }
                     }
                 }
@@ -216,7 +241,10 @@ fun ProductFormDialog(title: String, product: Product? = null, onDismiss: () -> 
                     modifier = Modifier.fillMaxWidth().focusRequester(nameFocus), 
                     shape = RoundedCornerShape(12.dp),
                     singleLine = true, 
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next), 
+                    keyboardOptions = KeyboardOptions(
+                        imeAction = ImeAction.Next,
+                        capitalization = KeyboardCapitalization.Words // MAYÚSCULA INICIAL AUTOMÁTICA
+                    ), 
                     keyboardActions = KeyboardActions(onNext = { priceFocus.requestFocus() }),
                     colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = FocusBlue, focusedLabelColor = FocusBlue)
                 )
@@ -270,7 +298,9 @@ fun ProductFormDialog(title: String, product: Product? = null, onDismiss: () -> 
                     onClick = { 
                         val p = price.toDoubleOrNull() ?: 0.0
                         val q = quantity.toIntOrNull() ?: 0
-                        if (name.isNotEmpty()) onConfirm(name, p, q, expiryDate.ifEmpty { null }) 
+                        // TRANSFORMAMOS EL TEXTO A "TITLE CASE" (Mayúscula Inicial) ANTES DE GUARDAR
+                        val formattedName = name.trim().lowercase().split(" ").joinToString(" ") { it.replaceFirstChar { char -> char.uppercase() } }
+                        if (name.isNotEmpty()) onConfirm(formattedName, p, q, expiryDate.ifEmpty { null }) 
                     }, 
                     modifier = Modifier.fillMaxWidth().height(52.dp),
                     shape = RoundedCornerShape(14.dp), 

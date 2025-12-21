@@ -3,11 +3,8 @@ package com.spectrum.phoenix.logic.almacen
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.spectrum.phoenix.logic.model.Product
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 class ProductViewModel : ViewModel() {
@@ -17,16 +14,22 @@ class ProductViewModel : ViewModel() {
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery
 
+    // Usamos WhileSubscribed para que no trabaje si la vista no existe, 
+    // pero guarde el estado 5 segundos por si es solo una rotación o navegación rápida.
     val products: StateFlow<List<Product>> = repository.getProducts()
-        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+        .flowOn(Dispatchers.IO)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val filteredProducts: StateFlow<List<Product>> = combine(_searchQuery, products) { query, list ->
         if (query.isEmpty()) {
             list
         } else {
+            // Filtro en hilo secundario para no trabar la UI
             list.filter { it.name.contains(query, ignoreCase = true) }
         }
-    }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+    }
+    .flowOn(Dispatchers.Default)
+    .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _result = MutableStateFlow<Result<Unit>?>(null)
     val result: StateFlow<Result<Unit>?> = _result
@@ -41,7 +44,8 @@ class ProductViewModel : ViewModel() {
                 name = name,
                 price = price,
                 quantity = quantity,
-                expiryDate = expiryDate
+                expiryDate = expiryDate,
+                timestamp = System.currentTimeMillis()
             )
             _result.value = repository.addProduct(product)
         }

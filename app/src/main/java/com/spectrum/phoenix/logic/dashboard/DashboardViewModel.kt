@@ -6,6 +6,7 @@ import com.spectrum.phoenix.logic.almacen.ProductRepository
 import com.spectrum.phoenix.logic.clientes.ClientRepository
 import com.spectrum.phoenix.logic.clientes.CreditRepository
 import com.spectrum.phoenix.logic.model.ActivityLog
+import com.spectrum.phoenix.logic.model.Product
 import com.spectrum.phoenix.logic.ventas.SaleRepository
 import kotlinx.coroutines.flow.*
 
@@ -33,6 +34,11 @@ class DashboardViewModel : ViewModel() {
     val totalStockFisico: StateFlow<Int> = productRepo.getProducts()
         .map { list -> list.sumOf { it.quantity } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    // LÓGICA DE STOCK BAJO (Paso 2)
+    val lowStockProducts: StateFlow<List<Product>> = productRepo.getProducts()
+        .map { list -> list.filter { it.quantity <= 5 } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // Clientes
     val totalClientes: StateFlow<Int> = clientRepo.getClients()

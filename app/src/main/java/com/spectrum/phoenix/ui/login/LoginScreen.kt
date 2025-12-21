@@ -51,7 +51,7 @@ fun LoginScreen(navController: NavController, loginViewModel: LoginViewModel = v
         loginState?.let { result ->
             if (result.isSuccess) {
                 val user = result.getOrNull()
-                sessionManager.saveSession(user?.userId ?: "", user?.name ?: "Usuario", user?.email ?: "")
+                sessionManager.saveSession(user?.userId ?: "", user?.name ?: "Usuario", user?.email ?: "", user?.role ?: "user")
                 toast.show("¡Bienvenido, ${user?.name}!", ToastType.SUCCESS)
                 navController.navigate("main") { popUpTo("login") { inclusive = true } }
             } else {

@@ -17,6 +17,7 @@ class PerfilViewModel(application: Application) : AndroidViewModel(application) 
     private val logRepo = ActivityLogRepository()
     
     private val _userId = sessionManager.getUserId() ?: ""
+    private val _userRole = sessionManager.getUserRole()
     
     private val _userName = MutableStateFlow(sessionManager.getUserName() ?: "Usuario")
     val userName: StateFlow<String> = _userName
@@ -43,8 +44,8 @@ class PerfilViewModel(application: Application) : AndroidViewModel(application) 
                 // ACTUALIZACIÓN EN FIREBASE
                 database.child(_userId).updateChildren(updates).await()
                 
-                // ACTUALIZAR SESIÓN LOCAL
-                sessionManager.saveSession(_userId, newName, _userEmail.value)
+                // ACTUALIZAR SESIÓN LOCAL - Corregido: se pasan los 4 parámetros requeridos
+                sessionManager.saveSession(_userId, newName, _userEmail.value, _userRole)
                 _userName.value = newName
                 
                 // REGISTRAR EN DASHBOARD

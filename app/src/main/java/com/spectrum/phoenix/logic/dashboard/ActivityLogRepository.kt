@@ -4,11 +4,12 @@ import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.ValueEventListener
+import com.spectrum.phoenix.PhoenixApp
 import com.spectrum.phoenix.logic.model.ActivityLog
+import com.spectrum.phoenix.logic.session.SessionManager
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.tasks.await
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -16,6 +17,9 @@ class ActivityLogRepository {
     private val db = FirebaseDatabase.getInstance()
     private val logsRef = db.getReference("Logs")
     private val managuaTimeZone = TimeZone.getTimeZone("America/Managua")
+    
+    // Obtenemos el contexto global a través de PhoenixApp
+    private val sessionManager = SessionManager(PhoenixApp.context)
 
     private fun getTodayDate(): String {
         val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
@@ -33,15 +37,22 @@ class ActivityLogRepository {
         return try {
             val newRef = logsRef.push()
             val id = newRef.key ?: throw Exception("No ID")
+            
+            // AHORA EL NOMBRE SIEMPRE SERÁ EL DEL USUARIO LOGUEADO
+            val currentUserName = sessionManager.getUserName() ?: "Personal"
+            
             val log = ActivityLog(
                 id = id, 
                 action = action, 
                 details = details, 
                 timestamp = System.currentTimeMillis(), 
                 date = getTodayDate(),
-                time = getNowTime()
+                time = getNowTime(),
+                userName = currentUserName
             )
-            logsRef.child(id).setValue(log).await()
+            
+            logsRef.child(id).setValue(log)
+            
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
@@ -52,19 +63,19 @@ class ActivityLogRepository {
         val today = getTodayDate()
         val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                val allLogs = snapshot.children.mapNotNull { it.getValue(ActivityLog::class.java) }
-                
-                // Purga automática de días anteriores
-                val oldLogs = allLogs.filter { it.date != today }
-                if (oldLogs.isNotEmpty()) {
-                    oldLogs.forEach { log -> logsRef.child(log.id).removeValue() }
-                }
-
-                // Mostrar actividad de hoy
-                val todayLogs = allLogs.filter { it.date == today }
+                val allTodayLogs = snapshot.children.mapNotNull { it.getValue(ActivityLog::class.java) }
+                    .filter { it.date == today }
                     .sortedByDescending { it.timestamp }
                 
-                trySend(todayLogs)
+                val recentLogs = allTodayLogs.take(10)
+                trySend(recentLogs)
+
+                val logsToDelete = snapshot.children.mapNotNull { it.getValue(ActivityLog::class.java) }
+                    .filter { it.date != today || it !in recentLogs }
+                
+                if (logsToDelete.isNotEmpty()) {
+                    logsToDelete.forEach { log -> logsRef.child(log.id).removeValue() }
+                }
             }
             override fun onCancelled(error: DatabaseError) { close(error.toException()) }
         }

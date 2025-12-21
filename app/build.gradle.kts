@@ -43,6 +43,9 @@ android {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
+        jniLibs {
+            useLegacyPackaging = true
+        }
     }
 }
 
@@ -71,6 +74,17 @@ dependencies {
 
     // LIBRERÍA PARA MANEJO DE JSON
     implementation("com.google.code.gson:gson:2.10.1")
+
+    // LIBRERÍA PARA CÓDIGOS DE BARRA (GENERACIÓN)
+    implementation("com.google.zxing:core:3.5.4")
+
+    // CAMERAX Y ML KIT (PARA ESCANEO)
+    val camerax_version = "1.3.4"
+    implementation("androidx.camera:camera-core:${camerax_version}")
+    implementation("androidx.camera:camera-camera2:${camerax_version}")
+    implementation("androidx.camera:camera-lifecycle:${camerax_version}")
+    implementation("androidx.camera:camera-view:${camerax_version}")
+    implementation("com.google.mlkit:barcode-scanning:17.2.0")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

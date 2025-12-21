@@ -2,12 +2,15 @@ package com.spectrum.phoenix.logic.ventas
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.spectrum.phoenix.PhoenixApp
 import com.spectrum.phoenix.logic.model.Sale
+import com.spectrum.phoenix.logic.session.SessionManager
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 class HistorialVentasViewModel : ViewModel() {
     private val repository = SaleRepository()
+    private val sessionManager = SessionManager(PhoenixApp.context)
 
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery
@@ -18,8 +21,23 @@ class HistorialVentasViewModel : ViewModel() {
 
     val filteredSales: StateFlow<List<Sale>> = _searchQuery
         .combine(_allSales) { query, list ->
-            if (query.isEmpty()) list
-            else list.filter { it.clientName.contains(query, ignoreCase = true) || it.date.contains(query) }
+            // FILTRADO POR ROL Y NOMBRE DE VENDEDOR
+            val role = sessionManager.getUserRole()
+            val userId = sessionManager.getUserId() ?: ""
+            
+            // Si es admin ve todo, si es usuario solo ve sus propias ventas
+            val baseList = if (role == "admin") {
+                list
+            } else {
+                list.filter { it.sellerId == userId }
+            }
+
+            if (query.isEmpty()) baseList
+            else baseList.filter { 
+                it.clientName.contains(query, ignoreCase = true) || 
+                it.date.contains(query) ||
+                it.sellerName.contains(query, ignoreCase = true)
+            }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _opResult = MutableStateFlow<Result<Unit>?>(null)
@@ -35,7 +53,6 @@ class HistorialVentasViewModel : ViewModel() {
         }
     }
 
-    // FUNCIÓN CORREGIDA PARA VACIAR TODO EL HISTORIAL
     fun clearAllHistory() {
         viewModelScope.launch {
             _opResult.value = repository.clearAllSales()

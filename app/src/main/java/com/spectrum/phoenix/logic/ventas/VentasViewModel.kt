@@ -1,13 +1,16 @@
 package com.spectrum.phoenix.logic.ventas
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.spectrum.phoenix.PhoenixApp
 import com.spectrum.phoenix.logic.almacen.ProductRepository
 import com.spectrum.phoenix.logic.clientes.ClientRepository
 import com.spectrum.phoenix.logic.model.Client
 import com.spectrum.phoenix.logic.model.Product
 import com.spectrum.phoenix.logic.model.Sale
 import com.spectrum.phoenix.logic.model.SaleItem
+import com.spectrum.phoenix.logic.session.SessionManager
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
@@ -15,6 +18,7 @@ class VentasViewModel : ViewModel() {
     private val productRepository = ProductRepository()
     private val clientRepository = ClientRepository()
     private val saleRepository = SaleRepository()
+    private val sessionManager = SessionManager(PhoenixApp.context)
 
     val allProducts: StateFlow<List<Product>> = productRepository.getProducts()
         .catch { emit(emptyList()) }
@@ -53,8 +57,8 @@ class VentasViewModel : ViewModel() {
     private val _selectedClient = MutableStateFlow<Client?>(null)
     val selectedClient: StateFlow<Client?> = _selectedClient
 
-    private val _saleResult = MutableStateFlow<Result<Unit>?>(null)
-    val saleResult: StateFlow<Result<Unit>?> = _saleResult
+    private val _saleResult = MutableStateFlow<Result<Sale>?>(null)
+    val saleResult: StateFlow<Result<Sale>?> = _saleResult
 
     val total: StateFlow<Double> = _cartItems.map { items -> 
         items.sumOf { it.subtotal }
@@ -62,6 +66,14 @@ class VentasViewModel : ViewModel() {
 
     fun onProductSearchQueryChange(query: String) {
         _productSearchQuery.value = query
+        
+        val exactProduct = allProducts.value.find { it.id == query }
+        if (exactProduct != null) {
+            if (exactProduct.quantity > 0) {
+                addToCart(exactProduct, 1)
+                _productSearchQuery.value = "" 
+            }
+        }
     }
 
     fun onClientSearchQueryChange(query: String) {
@@ -105,11 +117,14 @@ class VentasViewModel : ViewModel() {
         if (_cartItems.value.isEmpty()) return
         viewModelScope.launch {
             try {
+                // AHORA INCLUIMOS LOS DATOS DEL VENDEDOR EN LA VENTA
                 val sale = Sale(
                     clientId = _selectedClient.value?.id,
                     clientName = _selectedClient.value?.let { "${it.name} ${it.lastName}" } ?: "Venta General",
                     items = _cartItems.value,
-                    total = _cartItems.value.sumOf { it.subtotal }
+                    total = _cartItems.value.sumOf { it.subtotal },
+                    sellerId = sessionManager.getUserId() ?: "unknown",
+                    sellerName = sessionManager.getUserName() ?: "Personal"
                 )
                 val result = saleRepository.registerSale(sale)
                 if (result.isSuccess) {
@@ -121,6 +136,10 @@ class VentasViewModel : ViewModel() {
                 _saleResult.value = Result.failure(e)
             }
         }
+    }
+
+    fun generateTicket(context: Context, sale: Sale) {
+        TicketGenerator(context).generateAndShareTicket(sale)
     }
 
     fun clearResult() { _saleResult.value = null }

@@ -25,14 +25,15 @@ class SaleRepository {
     private val creditRepository = CreditRepository()
     private val logRepo = ActivityLogRepository()
 
-    suspend fun registerSale(sale: Sale): Result<Unit> {
+    suspend fun registerSale(sale: Sale): Result<Sale> {
         return try {
             val newSaleRef = salesRef.push()
             val id = newSaleRef.key ?: throw Exception("No se pudo generar ID")
             val date = SimpleDateFormat("dd/MM/yyyy hh:mm:ss a", Locale.getDefault()).format(Date())
-            val finalSale = sale.copy(id = id, date = date)
+            val finalSale = sale.copy(id = id, date = date, timestamp = System.currentTimeMillis())
 
-            salesRef.child(id).setValue(finalSale).await()
+            // INTERFAZ OPTIMISTA: No esperamos al servidor para confirmar
+            salesRef.child(id).setValue(finalSale)
 
             finalSale.clientId?.let { cid ->
                 creditRepository.addCharge(cid, finalSale.clientName, finalSale.total, id, finalSale.items)
@@ -40,17 +41,18 @@ class SaleRepository {
 
             finalSale.items.forEach { item ->
                 try {
+                    // Para descontar stock offline, confiamos en la caché local
                     val productSnapshot = productsRef.child(item.productId).get().await()
                     val product = productSnapshot.getValue(Product::class.java)
                     if (product != null) {
                         val newQty = product.quantity - item.quantity
-                        productsRef.child(item.productId).child("quantity").setValue(newQty).await()
+                        productsRef.child(item.productId).child("quantity").setValue(newQty)
                     }
                 } catch (e: Exception) {}
             }
             
             logRepo.logAction("Venta Realizada", "Monto: C$ ${String.format("%.2f", finalSale.total)} - Cliente: ${finalSale.clientName}")
-            Result.success(Unit)
+            Result.success(finalSale)
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -71,7 +73,7 @@ class SaleRepository {
 
     suspend fun clearAllSales(): Result<Unit> {
         return try {
-            salesRef.removeValue().await()
+            salesRef.removeValue()
             logRepo.logAction("Historial Limpiado", "Se vació el registro de operaciones")
             Result.success(Unit)
         } catch (e: Exception) {
@@ -86,7 +88,7 @@ class SaleRepository {
                 val product = productSnapshot.getValue(Product::class.java)
                 if (product != null) {
                     val restoredQty = product.quantity + item.quantity
-                    productsRef.child(item.productId).child("quantity").setValue(restoredQty).await()
+                    productsRef.child(item.productId).child("quantity").setValue(restoredQty)
                 }
             }
 
@@ -96,11 +98,11 @@ class SaleRepository {
                 if (credit != null) {
                     val newDebt = (credit.totalDebt - sale.total).coerceAtLeast(0.0)
                     val newHistory = credit.history.filter { it.id != sale.id }
-                    creditsRef.child(cid).setValue(credit.copy(totalDebt = newDebt, history = newHistory)).await()
+                    creditsRef.child(cid).setValue(credit.copy(totalDebt = newDebt, history = newHistory))
                 }
             }
 
-            salesRef.child(sale.id).removeValue().await()
+            salesRef.child(sale.id).removeValue()
             logRepo.logAction("Venta Revertida", "Se anuló venta de C$ ${String.format("%.2f", sale.total)} de ${sale.clientName}")
             Result.success(Unit)
         } catch (e: Exception) {

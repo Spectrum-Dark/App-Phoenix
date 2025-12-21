@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.spectrum.phoenix.logic.session.SessionManager
+import com.spectrum.phoenix.logic.user.UserRepository
 import com.spectrum.phoenix.ui.theme.FocusBlue
 import com.spectrum.phoenix.ui.theme.PhoenixTheme
 import kotlinx.coroutines.delay
@@ -25,8 +26,12 @@ import kotlinx.coroutines.delay
 fun SplashScreen(navController: NavController) {
     val context = LocalContext.current
     val sessionManager = remember { SessionManager(context) }
+    val userRepository = remember { UserRepository() }
 
     LaunchedEffect(Unit) {
+        // Verificar y crear admin por defecto si no existe
+        userRepository.checkAndCreateAdmin()
+        
         delay(2000)
         if (sessionManager.isLoggedIn()) {
             navController.navigate("main") { popUpTo("splash") { inclusive = true } }
@@ -47,7 +52,6 @@ fun SplashScreen(navController: NavController) {
             contentAlignment = Alignment.Center
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                // ICONO MÁS COMPACTO (ESTILO DASHBOARD)
                 Box(
                     modifier = Modifier
                         .size(90.dp)

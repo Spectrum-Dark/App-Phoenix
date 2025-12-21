@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
@@ -30,6 +31,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.spectrum.phoenix.logic.clientes.ClientViewModel
 import com.spectrum.phoenix.logic.model.Client
+import com.spectrum.phoenix.logic.session.SessionManager
 import com.spectrum.phoenix.ui.components.LocalToastController
 import com.spectrum.phoenix.ui.components.ToastType
 import com.spectrum.phoenix.ui.theme.FocusBlue
@@ -41,7 +43,10 @@ fun ListaClientesScreen(clientViewModel: ClientViewModel = viewModel()) {
     val clients by clientViewModel.filteredClients.collectAsStateWithLifecycle()
     val searchQuery by clientViewModel.searchQuery.collectAsStateWithLifecycle()
     val result by clientViewModel.result.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     val toast = LocalToastController.current
+    val sessionManager = remember { SessionManager(context) }
+    val isAdmin = sessionManager.getUserRole() == "admin"
 
     var showAddDialog by remember { mutableStateOf(false) }
     var clientToEdit by remember { mutableStateOf<Client?>(null) }
@@ -91,7 +96,12 @@ fun ListaClientesScreen(clientViewModel: ClientViewModel = viewModel()) {
                             Text("${clients.size} afiliados en cartera", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 4.dp))
                         }
                         items(clients, key = { it.id }) { client ->
-                            ClientCard(client, onEdit = { clientToEdit = it }, onDelete = { clientToDelete = it })
+                            ClientCard(
+                                client = client, 
+                                isAdmin = isAdmin,
+                                onEdit = { clientToEdit = it }, 
+                                onDelete = { clientToDelete = it }
+                            )
                         }
                     }
                 }
@@ -110,7 +120,7 @@ fun ListaClientesScreen(clientViewModel: ClientViewModel = viewModel()) {
             ClientFormDialog(title = "Editar Información", client = clientToEdit, onDismiss = { clientToEdit = null }, onConfirm = { n, l -> clientViewModel.updateClient(clientToEdit!!.copy(name = n, lastName = l)) })
         }
 
-        if (clientToDelete != null) {
+        if (clientToDelete != null && isAdmin) {
             AlertDialog(
                 onDismissRequest = { clientToDelete = null },
                 title = { Text("Eliminar Afiliado") },
@@ -127,7 +137,7 @@ fun ListaClientesScreen(clientViewModel: ClientViewModel = viewModel()) {
 }
 
 @Composable
-fun ClientCard(client: Client, onEdit: (Client) -> Unit, onDelete: (Client) -> Unit) {
+fun ClientCard(client: Client, isAdmin: Boolean, onEdit: (Client) -> Unit, onDelete: (Client) -> Unit) {
     var showMenu by remember { mutableStateOf(false) }
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -148,7 +158,9 @@ fun ClientCard(client: Client, onEdit: (Client) -> Unit, onDelete: (Client) -> U
                 IconButton(onClick = { showMenu = true }) { Icon(Icons.Default.MoreVert, null, tint = MaterialTheme.colorScheme.onSurfaceVariant) }
                 DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
                     DropdownMenuItem(text = { Text("Editar") }, leadingIcon = { Icon(Icons.Default.Edit, null, modifier = Modifier.size(18.dp)) }, onClick = { showMenu = false; onEdit(client) })
-                    DropdownMenuItem(text = { Text("Eliminar", color = MaterialTheme.colorScheme.error) }, leadingIcon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp)) }, onClick = { showMenu = false; onDelete(client) })
+                    if (isAdmin) {
+                        DropdownMenuItem(text = { Text("Eliminar", color = MaterialTheme.colorScheme.error) }, leadingIcon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp)) }, onClick = { showMenu = false; onDelete(client) })
+                    }
                 }
             }
         }
@@ -173,10 +185,58 @@ fun ClientFormDialog(title: String, client: Client? = null, onDismiss: () -> Uni
                     Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                 }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 0.5.dp)
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nombre") }, modifier = Modifier.fillMaxWidth().focusRequester(nameFocus), shape = RoundedCornerShape(12.dp), singleLine = true, keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next), keyboardActions = KeyboardActions(onNext = { lastNameFocus.requestFocus() }), colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = FocusBlue))
-                OutlinedTextField(value = lastName, onValueChange = { lastName = it }, label = { Text("Apellido") }, modifier = Modifier.fillMaxWidth().focusRequester(lastNameFocus), shape = RoundedCornerShape(12.dp), singleLine = true, keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done), keyboardActions = KeyboardActions(onDone = { if (name.isNotEmpty()) onConfirm(name, lastName) }), colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = FocusBlue))
+                
+                OutlinedTextField(
+                    value = name, 
+                    onValueChange = { name = it }, 
+                    label = { Text("Nombre") }, 
+                    modifier = Modifier.fillMaxWidth().focusRequester(nameFocus), 
+                    shape = RoundedCornerShape(12.dp), 
+                    singleLine = true, 
+                    keyboardOptions = KeyboardOptions(
+                        imeAction = ImeAction.Next,
+                        capitalization = KeyboardCapitalization.Words // MAYÚSCULA INICIAL
+                    ), 
+                    keyboardActions = KeyboardActions(onNext = { lastNameFocus.requestFocus() }), 
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = FocusBlue)
+                )
+                
+                OutlinedTextField(
+                    value = lastName, 
+                    onValueChange = { lastName = it }, 
+                    label = { Text("Apellido") }, 
+                    modifier = Modifier.fillMaxWidth().focusRequester(lastNameFocus), 
+                    shape = RoundedCornerShape(12.dp), 
+                    singleLine = true, 
+                    keyboardOptions = KeyboardOptions(
+                        imeAction = ImeAction.Done,
+                        capitalization = KeyboardCapitalization.Words // MAYÚSCULA INICIAL
+                    ), 
+                    keyboardActions = KeyboardActions(onDone = { 
+                        if (name.isNotEmpty()) {
+                            val fName = name.trim().lowercase().split(" ").joinToString(" ") { it.replaceFirstChar { c -> c.uppercase() } }
+                            val fLastName = lastName.trim().lowercase().split(" ").joinToString(" ") { it.replaceFirstChar { c -> c.uppercase() } }
+                            onConfirm(fName, fLastName)
+                        }
+                    }), 
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = FocusBlue)
+                )
+                
                 Spacer(modifier = Modifier.height(8.dp))
-                Button(onClick = { if (name.isNotEmpty()) onConfirm(name, lastName) }, modifier = Modifier.fillMaxWidth().height(52.dp), colors = ButtonDefaults.buttonColors(containerColor = FocusBlue, contentColor = Color.White), shape = RoundedCornerShape(14.dp)) {
+                
+                Button(
+                    onClick = { 
+                        if (name.isNotEmpty()) {
+                            // FORMATEO AUTOMÁTICO A "TITLE CASE"
+                            val fName = name.trim().lowercase().split(" ").joinToString(" ") { it.replaceFirstChar { c -> c.uppercase() } }
+                            val fLastName = lastName.trim().lowercase().split(" ").joinToString(" ") { it.replaceFirstChar { c -> c.uppercase() } }
+                            onConfirm(fName, fLastName) 
+                        }
+                    }, 
+                    modifier = Modifier.fillMaxWidth().height(52.dp), 
+                    colors = ButtonDefaults.buttonColors(containerColor = FocusBlue, contentColor = Color.White), 
+                    shape = RoundedCornerShape(14.dp)
+                ) {
                     Icon(Icons.Default.CheckCircle, null, modifier = Modifier.size(18.dp)); Spacer(modifier = Modifier.width(8.dp)); Text("GUARDAR AFILIADO", fontWeight = FontWeight.Bold)
                 }
                 TextButton(onClick = onDismiss) { Text("Cancelar", color = MaterialTheme.colorScheme.onSurfaceVariant) }

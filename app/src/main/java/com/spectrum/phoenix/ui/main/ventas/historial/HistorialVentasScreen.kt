@@ -22,6 +22,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.spectrum.phoenix.logic.model.Sale
+import com.spectrum.phoenix.logic.session.SessionManager
 import com.spectrum.phoenix.logic.ventas.HistorialVentasViewModel
 import com.spectrum.phoenix.ui.components.LocalToastController
 import com.spectrum.phoenix.ui.components.ToastType
@@ -34,7 +35,10 @@ fun HistorialVentasScreen(historialViewModel: HistorialVentasViewModel = viewMod
     val sales by historialViewModel.filteredSales.collectAsStateWithLifecycle()
     val searchQuery by historialViewModel.searchQuery.collectAsStateWithLifecycle()
     val result by historialViewModel.opResult.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     val toast = LocalToastController.current
+    val sessionManager = remember { SessionManager(context) }
+    val isAdmin = sessionManager.getUserRole() == "admin"
 
     var selectedSaleForDetails by remember { mutableStateOf<Sale?>(null) }
     var saleToRevert by remember { mutableStateOf<Sale?>(null) }
@@ -75,8 +79,10 @@ fun HistorialVentasScreen(historialViewModel: HistorialVentasViewModel = viewMod
                     item {
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                             Text("REGISTRO DE OPERACIONES", style = MaterialTheme.typography.labelLarge, color = FocusBlue, fontWeight = FontWeight.Black)
-                            IconButton(onClick = { showClearAllConfirm = true }, modifier = Modifier.size(32.dp)) {
-                                Icon(Icons.Default.DeleteSweep, null, tint = Color.Red)
+                            if (isAdmin) {
+                                IconButton(onClick = { showClearAllConfirm = true }, modifier = Modifier.size(32.dp)) {
+                                    Icon(Icons.Default.DeleteSweep, null, tint = Color.Red)
+                                }
                             }
                         }
                     }
@@ -87,7 +93,7 @@ fun HistorialVentasScreen(historialViewModel: HistorialVentasViewModel = viewMod
             }
         }
 
-        if (showClearAllConfirm) {
+        if (showClearAllConfirm && isAdmin) {
             AlertDialog(
                 onDismissRequest = { showClearAllConfirm = false },
                 title = { Text("¿Vaciar Registro?") },
@@ -170,6 +176,7 @@ fun SaleDetailsDialog(sale: Sale, onDismiss: () -> Unit, onRevertRequest: (Sale)
                     Text("C$ ${String.format("%.2f", sale.total)}", fontWeight = FontWeight.Black, fontSize = 20.sp, color = MaterialTheme.colorScheme.secondary)
                 }
                 Spacer(modifier = Modifier.height(24.dp))
+                // TANTO ADMIN COMO USER PUEDEN REVERTIR SEGÚN LA SOLICITUD
                 Button(onClick = { onRevertRequest(sale) }, modifier = Modifier.fillMaxWidth().height(48.dp), shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.buttonColors(containerColor = Color.Red)) {
                     Icon(Icons.Default.Undo, null, tint = Color.White, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp)); Text("REVERTIR OPERACIÓN", fontWeight = FontWeight.Bold, color = Color.White)

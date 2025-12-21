@@ -6,5 +6,6 @@ data class ActivityLog(
     val details: String = "",
     val timestamp: Long = System.currentTimeMillis(),
     val date: String = "", // dd/MM/yyyy
-    val time: String = ""  // hh:mm:ss a
+    val time: String = "",  // hh:mm:ss a
+    val userName: String = "Sistema"
 )

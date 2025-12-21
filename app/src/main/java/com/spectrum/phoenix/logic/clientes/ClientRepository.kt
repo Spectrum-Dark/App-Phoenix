@@ -25,7 +25,9 @@ class ClientRepository {
             val id = newRef.key ?: throw Exception("No ID")
             val date = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())
             val client = Client(id, name, lastName, date)
-            clientsRef.child(id).setValue(client).await()
+            
+            // Cambio para modo offline: no esperamos al servidor
+            clientsRef.child(id).setValue(client)
             logRepo.logAction("Cliente Registrado", "Se afilió a: $name $lastName")
             Result.success(Unit)
         } catch (e: Exception) {
@@ -35,7 +37,7 @@ class ClientRepository {
 
     suspend fun updateClient(client: Client): Result<Unit> {
         return try {
-            clientsRef.child(client.id).setValue(client).await()
+            clientsRef.child(client.id).setValue(client)
             logRepo.logAction("Cliente Editado", "Se actualizó a: ${client.name} ${client.lastName}")
             Result.success(Unit)
         } catch (e: Exception) {
@@ -45,9 +47,9 @@ class ClientRepository {
 
     suspend fun deleteClient(clientId: String): Result<Unit> {
         return try {
-            val client = clientsRef.child(clientId).get().await().getValue(Client::class.java)
-            clientsRef.child(clientId).removeValue().await()
-            logRepo.logAction("Cliente Eliminado", "Se eliminó a: ${client?.name ?: clientId}")
+            // El borrado es instantáneo localmente
+            clientsRef.child(clientId).removeValue()
+            logRepo.logAction("Cliente Eliminado", "ID: $clientId")
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)

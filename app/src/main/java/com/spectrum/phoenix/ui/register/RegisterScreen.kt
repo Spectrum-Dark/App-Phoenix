@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -18,7 +17,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
@@ -43,15 +41,11 @@ fun RegisterScreen(navController: NavController, registerViewModel: RegisterView
     var confirmPasswordVisible by remember { mutableStateOf(false) }
     
     val toast = LocalToastController.current
-    val roles = listOf("user", "admin")
-    var selectedRole by remember { mutableStateOf(roles[0]) }
-    var expanded by remember { mutableStateOf(false) }
     
     val isEmailValid = remember(email) { Patterns.EMAIL_ADDRESS.matcher(email).matches() }
     val passwordsMatch = password.isNotEmpty() && password == confirmPassword
     val isFormValid = name.isNotEmpty() && isEmailValid && passwordsMatch && password.length >= 6
 
-    val context = LocalContext.current
     val registrationState by registerViewModel.registrationState.collectAsStateWithLifecycle()
 
     LaunchedEffect(registrationState) {
@@ -85,22 +79,14 @@ fun RegisterScreen(navController: NavController, registerViewModel: RegisterView
                 OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nombre Completo") }, leadingIcon = { Icon(Icons.Default.Badge, null, tint = FocusBlue) }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), singleLine = true)
                 Spacer(modifier = Modifier.height(10.dp))
                 OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Correo Electrónico") }, leadingIcon = { Icon(Icons.Default.Email, null, tint = if(isEmailValid || email.isEmpty()) FocusBlue else Color.Red) }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), singleLine = true, isError = !isEmailValid && email.isNotEmpty())
-                Spacer(modifier = Modifier.height(10.dp))
-
-                ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }, modifier = Modifier.fillMaxWidth()) {
-                    OutlinedTextField(value = selectedRole.uppercase(), onValueChange = {}, readOnly = true, label = { Text("Rol de Acceso") }, leadingIcon = { Icon(Icons.Default.AdminPanelSettings, null, tint = FocusBlue) }, trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) }, modifier = Modifier.menuAnchor().fillMaxWidth(), shape = RoundedCornerShape(14.dp))
-                    ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                        roles.forEach { role -> DropdownMenuItem(text = { Text(text = role.uppercase()) }, onClick = { selectedRole = role; expanded = false }) }
-                    }
-                }
-
+                
                 Spacer(modifier = Modifier.height(10.dp))
                 OutlinedTextField(value = password, onValueChange = { password = it }, label = { Text("Contraseña (mín. 6)") }, leadingIcon = { Icon(Icons.Default.Lock, null, tint = FocusBlue) }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(), trailingIcon = { IconButton(onClick = { passwordVisible = !passwordVisible }) { Icon(if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility, null, modifier = Modifier.size(20.dp)) } })
                 Spacer(modifier = Modifier.height(10.dp))
                 OutlinedTextField(value = confirmPassword, onValueChange = { confirmPassword = it }, label = { Text("Confirmar Contraseña") }, leadingIcon = { Icon(Icons.Default.VerifiedUser, null, tint = if(passwordsMatch || confirmPassword.isEmpty()) FocusBlue else Color.Red) }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), isError = !passwordsMatch && confirmPassword.isNotEmpty(), visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(), trailingIcon = { IconButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) { Icon(if (confirmPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility, null, modifier = Modifier.size(20.dp)) } })
 
                 Spacer(modifier = Modifier.height(24.dp))
-                Button(onClick = { if (isFormValid) registerViewModel.onRegisterClicked(name, email, password, selectedRole) }, enabled = isFormValid, modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(14.dp), colors = ButtonDefaults.buttonColors(containerColor = if(isFormValid) FocusBlue else MaterialTheme.colorScheme.surfaceVariant)) {
+                Button(onClick = { if (isFormValid) registerViewModel.onRegisterClicked(name, email, password) }, enabled = isFormValid, modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(14.dp), colors = ButtonDefaults.buttonColors(containerColor = if(isFormValid) FocusBlue else MaterialTheme.colorScheme.surfaceVariant)) {
                     Text("CREAR CUENTA", fontWeight = FontWeight.Bold)
                 }
                 Spacer(modifier = Modifier.height(16.dp))

@@ -10,7 +10,6 @@ import com.spectrum.phoenix.logic.model.Product
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.tasks.await
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -29,8 +28,20 @@ class ProductRepository {
             val newRef = productsRef.push()
             val id = newRef.key ?: throw Exception("No se pudo generar el ID")
             val finalProduct = product.copy(id = id)
-            productsRef.child(id).setValue(finalProduct).await()
-            saveOrUpdateEntryLogic(finalProduct, isNew = true, oldQty = 0)
+            
+            // setValue sin await() para éxito instantáneo offline
+            productsRef.child(id).setValue(finalProduct) 
+            
+            // Lógica de entrada: Para un producto nuevo no necesitamos consultar el servidor
+            val entry = Entry(
+                id = id,
+                productId = id,
+                productName = product.name,
+                quantity = product.quantity,
+                date = SimpleDateFormat("dd/MM/yyyy hh:mm:ss a", Locale.getDefault()).format(Date())
+            )
+            entriesRef.child(id).setValue(entry)
+            
             logRepo.logAction("Producto Agregado", "Se registró el producto: ${product.name}")
             Result.success(Unit)
         } catch (e: Exception) {
@@ -40,8 +51,24 @@ class ProductRepository {
 
     suspend fun updateProduct(product: Product, oldQuantity: Int): Result<Unit> {
         return try {
-            productsRef.child(product.id).setValue(product).await()
-            saveOrUpdateEntryLogic(product, isNew = false, oldQty = oldQuantity)
+            productsRef.child(product.id).setValue(product)
+            
+            // En actualización, calculamos la diferencia localmente sin bloquear con await()
+            val diff = product.quantity - oldQuantity
+            if (diff != 0) {
+                // Actualizamos la entrada de forma optimista
+                // Nota: Si necesitas historial acumulado preciso, Firebase se encargará de sincronizar 
+                // las transacciones cuando vuelva el internet.
+                val entry = Entry(
+                    id = product.id,
+                    productId = product.id,
+                    productName = product.name,
+                    quantity = product.quantity,
+                    date = SimpleDateFormat("dd/MM/yyyy hh:mm:ss a", Locale.getDefault()).format(Date())
+                )
+                entriesRef.child(product.id).setValue(entry)
+            }
+            
             logRepo.logAction("Producto Editado", "Se actualizó el producto: ${product.name}")
             Result.success(Unit)
         } catch (e: Exception) {
@@ -49,45 +76,11 @@ class ProductRepository {
         }
     }
 
-    private suspend fun saveOrUpdateEntryLogic(product: Product, isNew: Boolean, oldQty: Int) {
-        try {
-            val today = getTodayDate()
-            val diff = product.quantity - oldQty
-            val currentTime = System.currentTimeMillis()
-            val isRecentCorrection = (currentTime - product.timestamp) < 5 * 60 * 1000
-
-            val snapshot = entriesRef.child(product.id).get().await()
-            val currentEntry = snapshot.getValue(Entry::class.java)
-
-            val newEntryQty: Int = when {
-                isNew || diff < 0 || isRecentCorrection -> product.quantity
-                diff > 0 -> {
-                    if (currentEntry != null && currentEntry.date.startsWith(today)) {
-                        currentEntry.quantity + diff
-                    } else {
-                        diff
-                    }
-                }
-                else -> return 
-            }
-
-            val entry = Entry(
-                id = product.id,
-                productId = product.id,
-                productName = product.name,
-                quantity = newEntryQty,
-                date = SimpleDateFormat("dd/MM/yyyy hh:mm:ss a", Locale.getDefault()).format(Date())
-            )
-            entriesRef.child(product.id).setValue(entry).await()
-        } catch (e: Exception) {}
-    }
-
     suspend fun deleteProduct(productId: String): Result<Unit> {
         return try {
-            val product = productsRef.child(productId).get().await().getValue(Product::class.java)
-            productsRef.child(productId).removeValue().await()
-            entriesRef.child(productId).removeValue().await()
-            logRepo.logAction("Producto Eliminado", "Se eliminó el producto: ${product?.name ?: productId}")
+            productsRef.child(productId).removeValue()
+            entriesRef.child(productId).removeValue()
+            logRepo.logAction("Producto Eliminado", "ID: $productId")
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)

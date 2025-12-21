@@ -54,6 +54,14 @@ class ReportesViewModel : ViewModel() {
                     if (data.isNotEmpty()) generator.generatePDF("Inventario Total", listOf("Producto", "Stock", "Precio"), data)
                     else toast.show("Inventario vacío", ToastType.INFO)
                 }
+                "CATALOGO_BARRAS" -> {
+                    val products = productRepo.getProducts().first()
+                    if (products.isNotEmpty()) {
+                        generator.generateBarcodeCatalog(products)
+                    } else {
+                        toast.show("No hay productos para generar etiquetas", ToastType.INFO)
+                    }
+                }
                 "CLIENTES_CREDITOS" -> {
                     val credits = creditRepo.getCredits().first()
                     val active = credits.filter { it.totalDebt > 0 }

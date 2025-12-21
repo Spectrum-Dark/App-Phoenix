@@ -2,7 +2,11 @@ package com.spectrum.phoenix.ui.main
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -23,16 +27,20 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.spectrum.phoenix.logic.dashboard.DashboardViewModel
 import com.spectrum.phoenix.logic.session.SessionManager
 import com.spectrum.phoenix.ui.main.clientes.creditos.CreditosScreen
 import com.spectrum.phoenix.ui.main.clientes.lista.ListaClientesScreen
 import com.spectrum.phoenix.ui.main.dashboard.DashboardScreen
 import com.spectrum.phoenix.ui.main.perfil.PerfilScreen
 import com.spectrum.phoenix.ui.main.configuracion.BackupScreen
+import com.spectrum.phoenix.ui.main.configuracion.UsuariosScreen
 import com.spectrum.phoenix.ui.main.productos.almacen.AlmacenScreen
 import com.spectrum.phoenix.ui.main.productos.vencimiento.VencimientoScreen
 import com.spectrum.phoenix.ui.main.reportes.ReportesScreen
@@ -51,11 +59,20 @@ data class MenuItem(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen(navController: NavController) {
+fun MainScreen(navController: NavController, dashboardViewModel: DashboardViewModel = viewModel()) {
     val context = LocalContext.current
     val sessionManager = remember { SessionManager(context) }
+    val isAdmin = sessionManager.getUserRole() == "admin"
     
-    // ESTADO DEL NOMBRE EN TIEMPO REAL
+    // ESTADO DE NOTIFICACIONES CON PERSISTENCIA
+    val lowStockList by dashboardViewModel.lowStockProducts.collectAsStateWithLifecycle()
+    var showNotifMenu by remember { mutableStateOf(false) }
+    
+    var seenProductIds by remember { mutableStateOf(sessionManager.getSeenNotifs()) }
+    var dismissedProducts by remember { mutableStateOf(sessionManager.getDismissedNotifs()) }
+
+    val newNotifsCount = lowStockList.count { it.id !in seenProductIds && it.id !in dismissedProducts }
+    
     var currentUserName by remember { mutableStateOf(sessionManager.getUserName() ?: "Usuario") }
 
     val adminPanel = MenuItem("admin_panel", "Panel Administrativo", Icons.Default.AdminPanelSettings, children = listOf(
@@ -65,10 +82,16 @@ fun MainScreen(navController: NavController) {
         MenuItem("reportes", "Centro de Inteligencia", Icons.Default.Assessment)
     ))
 
-    val configPanel = MenuItem("configuracion", "Ajustes y Configuración", Icons.Default.Settings, children = listOf(
-        MenuItem("perfil", "Mi Perfil de Usuario", Icons.Default.Person),
-        MenuItem("backup", "Respaldo de Datos", Icons.Default.CloudUpload)
-    ))
+    val configChildren = mutableListOf(
+        MenuItem("perfil", "Mi Perfil de Usuario", Icons.Default.Person)
+    )
+    
+    if (isAdmin) {
+        configChildren.add(MenuItem("usuarios", "Gestión de Usuarios", Icons.Default.Group))
+        configChildren.add(MenuItem("backup", "Respaldo de Datos", Icons.Default.CloudUpload))
+    }
+
+    val configPanel = MenuItem("configuracion", "Ajustes y Configuración", Icons.Default.Settings, children = configChildren)
 
     val menuItems = listOf(
         adminPanel,
@@ -88,9 +111,10 @@ fun MainScreen(navController: NavController) {
     val mainContentNavController = rememberNavController()
 
     var selectedItem by remember { mutableStateOf<MenuItem?>(adminPanel.children[0]) }
-    var expandedItems by remember { mutableStateOf(setOf("admin_panel")) }
+    
+    // CAMBIO SOLICITADO: Iniciar todo el menú compactado
+    var expandedItems by remember { mutableStateOf(emptySet<String>()) }
 
-    // Efecto para actualizar el nombre del menú cada vez que se navega (por si cambió en el Perfil)
     LaunchedEffect(mainContentNavController.currentBackStackEntry) {
         currentUserName = sessionManager.getUserName() ?: "Usuario"
     }
@@ -248,6 +272,103 @@ fun MainScreen(navController: NavController) {
                                 IconButton(onClick = { scope.launch { drawerState.open() } }) {
                                     Icon(Icons.Default.Menu, contentDescription = null)
                                 }
+                            },
+                            actions = {
+                                Box {
+                                    IconButton(onClick = { 
+                                        showNotifMenu = true 
+                                        seenProductIds = seenProductIds + lowStockList.map { it.id }.toSet()
+                                        sessionManager.saveSeenNotifs(seenProductIds)
+                                    }) {
+                                        BadgedBox(
+                                            badge = {
+                                                if (newNotifsCount > 0) {
+                                                    Badge(containerColor = MaterialTheme.colorScheme.error) {
+                                                        Text(newNotifsCount.toString(), color = Color.White)
+                                                    }
+                                                }
+                                            }
+                                        ) {
+                                            Icon(Icons.Default.Notifications, null)
+                                        }
+                                    }
+                                    
+                                    DropdownMenu(
+                                        expanded = showNotifMenu,
+                                        onDismissRequest = { showNotifMenu = false },
+                                        modifier = Modifier
+                                            .width(300.dp)
+                                            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(20.dp))
+                                            .border(1.dp, FocusBlue.copy(alpha = 0.3f), RoundedCornerShape(20.dp))
+                                    ) {
+                                        Column(modifier = Modifier.padding(vertical = 8.dp)) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text("Notificaciones", fontWeight = FontWeight.Black, fontSize = 16.sp, color = FocusBlue)
+                                                if (lowStockList.isNotEmpty()) {
+                                                    Text(
+                                                        "Limpiar", 
+                                                        fontSize = 12.sp, 
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = MaterialTheme.colorScheme.primary, 
+                                                        modifier = Modifier.clickable { 
+                                                            dismissedProducts = lowStockList.map { it.id }.toSet()
+                                                            sessionManager.saveDismissedNotifs(dismissedProducts)
+                                                            showNotifMenu = false
+                                                        }
+                                                    )
+                                                }
+                                            }
+                                            
+                                            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                                            
+                                            val visibleNotifs = lowStockList.filter { it.id !in dismissedProducts }
+                                            
+                                            if (visibleNotifs.isEmpty()) {
+                                                Box(modifier = Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
+                                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                        Icon(Icons.Default.CheckCircle, null, tint = Color(0xFF4CAF50), modifier = Modifier.size(32.dp))
+                                                        Spacer(modifier = Modifier.height(8.dp))
+                                                        Text("Todo está bajo control", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                                    }
+                                                }
+                                            } else {
+                                                visibleNotifs.forEach { product ->
+                                                    DropdownMenuItem(
+                                                        text = {
+                                                            Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                                                                Text(product.name, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
+                                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                                    Icon(Icons.Default.Error, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(14.dp))
+                                                                    Spacer(modifier = Modifier.width(4.dp))
+                                                                    Text("Stock Crítico: ${product.quantity} unidades", fontSize = 12.sp, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Medium)
+                                                                }
+                                                            }
+                                                        },
+                                                        onClick = {
+                                                            showNotifMenu = false
+                                                            mainContentNavController.navigate("almacen")
+                                                        },
+                                                        leadingIcon = {
+                                                            Surface(
+                                                                modifier = Modifier.size(36.dp),
+                                                                shape = CircleShape,
+                                                                color = FocusBlue.copy(alpha = 0.1f)
+                                                            ) {
+                                                                Box(contentAlignment = Alignment.Center) {
+                                                                    Icon(Icons.Default.Inventory, null, tint = FocusBlue, modifier = Modifier.size(18.dp))
+                                                                }
+                                                            }
+                                                        }
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         )
                     }
@@ -261,12 +382,16 @@ fun MainScreen(navController: NavController) {
                         composable("ventas") { VentasScreen() }
                         composable("historial_ventas") { HistorialVentasScreen() }
                         composable("reportes") { ReportesScreen() }
-                        composable("almacen") { AlmacenScreen() }
+                        // USAR navController (Raíz) en lugar de mainContentNavController
+                        composable("almacen") { AlmacenScreen(navController) }
                         composable("vencimiento") { VencimientoScreen() }
                         composable("lista") { ListaClientesScreen() }
                         composable("creditos") { CreditosScreen() }
                         composable("perfil") { PerfilScreen() }
-                        composable("backup") { BackupScreen() }
+                        if (isAdmin) {
+                            composable("usuarios") { UsuariosScreen() }
+                            composable("backup") { BackupScreen() }
+                        }
                     }
                 }
             }

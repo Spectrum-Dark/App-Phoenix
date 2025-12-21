@@ -13,9 +13,9 @@ class RegisterViewModel : ViewModel() {
     private val _registrationState = MutableStateFlow<Result<Unit>?>(null)
     val registrationState: StateFlow<Result<Unit>?> = _registrationState
 
-    fun onRegisterClicked(name: String, email: String, pass: String, role: String) {
+    fun onRegisterClicked(name: String, email: String, pass: String) {
         viewModelScope.launch {
-            val result = registerRepository.createUser(name, email, pass, role)
+            val result = registerRepository.createUser(name, email, pass, "user")
             _registrationState.value = result
         }
     }

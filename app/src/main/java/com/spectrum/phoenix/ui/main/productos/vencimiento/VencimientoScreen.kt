@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.spectrum.phoenix.logic.model.Product
+import com.spectrum.phoenix.logic.session.SessionManager
 import com.spectrum.phoenix.logic.vencimiento.VencimientoViewModel
 import com.spectrum.phoenix.ui.components.LocalToastController
 import com.spectrum.phoenix.ui.components.ToastType
@@ -35,7 +36,10 @@ fun VencimientoScreen(vencimientoViewModel: VencimientoViewModel = viewModel()) 
     val expiringProducts by vencimientoViewModel.expiringProducts.collectAsStateWithLifecycle()
     val searchQuery by vencimientoViewModel.searchQuery.collectAsStateWithLifecycle()
     val deleteResult by vencimientoViewModel.deleteResult.collectAsStateWithLifecycle()
-    val toast = LocalToastController.current // ACTIVADO TOAST PRO
+    val context = LocalContext.current
+    val toast = LocalToastController.current
+    val sessionManager = remember { SessionManager(context) }
+    val isAdmin = sessionManager.getUserRole() == "admin"
     
     var productToDelete by remember { mutableStateOf<Product?>(null) }
     var showDeleteAllConfirm by remember { mutableStateOf(false) }
@@ -82,21 +86,27 @@ fun VencimientoScreen(vencimientoViewModel: VencimientoViewModel = viewModel()) 
                         item {
                             Row(modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                                 Text("ALERTAS DE CADUCIDAD", style = MaterialTheme.typography.labelLarge, color = FocusBlue, fontWeight = FontWeight.Black)
-                                IconButton(onClick = { showDeleteAllConfirm = true }, modifier = Modifier.size(32.dp)) {
-                                    Icon(Icons.Default.DeleteSweep, null, tint = Color.Red)
+                                if (isAdmin) {
+                                    IconButton(onClick = { showDeleteAllConfirm = true }, modifier = Modifier.size(32.dp)) {
+                                        Icon(Icons.Default.DeleteSweep, null, tint = Color.Red)
+                                    }
                                 }
                             }
                         }
                         
                         items(expiringProducts, key = { it.id }) { product ->
-                            ExpiringProductProCard(product, onDelete = { productToDelete = it })
+                            ExpiringProductProCard(
+                                product = product, 
+                                isAdmin = isAdmin,
+                                onDelete = { productToDelete = it }
+                            )
                         }
                     }
                 }
             }
         }
 
-        if (showDeleteAllConfirm) {
+        if (showDeleteAllConfirm && isAdmin) {
             AlertDialog(
                 onDismissRequest = { showDeleteAllConfirm = false },
                 title = { Text("¿Vaciar Alertas?") },
@@ -110,7 +120,7 @@ fun VencimientoScreen(vencimientoViewModel: VencimientoViewModel = viewModel()) 
             )
         }
 
-        if (productToDelete != null) {
+        if (productToDelete != null && isAdmin) {
             AlertDialog(
                 onDismissRequest = { productToDelete = null },
                 title = { Text("Eliminar Producto") },
@@ -127,7 +137,7 @@ fun VencimientoScreen(vencimientoViewModel: VencimientoViewModel = viewModel()) 
 }
 
 @Composable
-fun ExpiringProductProCard(product: Product, onDelete: (Product) -> Unit) {
+fun ExpiringProductProCard(product: Product, isAdmin: Boolean, onDelete: (Product) -> Unit) {
     val daysLeft = remember(product.expiryDate) { calculateDaysLeft(product.expiryDate) }
     
     val (statusText, statusColor) = when {
@@ -162,9 +172,12 @@ fun ExpiringProductProCard(product: Product, onDelete: (Product) -> Unit) {
                 Text(product.expiryDate ?: "--/--/----", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
                 Text(if(daysLeft <= 0) "Expiró" else "Faltan $daysLeft días", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Spacer(modifier = Modifier.width(8.dp))
-            IconButton(onClick = { onDelete(product) }) {
-                Icon(Icons.Default.DeleteOutline, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            
+            if (isAdmin) {
+                Spacer(modifier = Modifier.width(8.dp))
+                IconButton(onClick = { onDelete(product) }) {
+                    Icon(Icons.Default.DeleteOutline, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
         }
     }

@@ -35,13 +35,14 @@ data class ReportOption(
 @Composable
 fun ReportesScreen(reportesViewModel: ReportesViewModel = viewModel()) {
     val context = LocalContext.current
-    val toast = LocalToastController.current // USAR NUEVO TOAST
+    val toast = LocalToastController.current 
     
     val inventoryReports = listOf(
         ReportOption("Entradas de Hoy", "ENTRADAS", Icons.Default.MoveToInbox, Color(0xFF4CAF50), "Stock ingresado en la fecha actual"),
         ReportOption("Próximos a Vencer", "PROXIMOS_VENCER", Icons.Default.Timer, Color(0xFFFF9800), "Productos por expirar (7 días)"),
         ReportOption("Productos Vencidos", "VENCIDOS", Icons.Default.EventBusy, Color(0xFFF44336), "Listado de stock ya caducado"),
-        ReportOption("Inventario Total", "TODOS_PRODUCTOS", Icons.Default.Inventory, FocusBlue, "Estado actual de todo el almacén")
+        ReportOption("Inventario Total", "TODOS_PRODUCTOS", Icons.Default.Inventory, FocusBlue, "Estado actual de todo el almacén"),
+        ReportOption("Catálogo de Etiquetas", "CATALOGO_BARRAS", Icons.Default.QrCode, Color(0xFF673AB7), "PDF con nombres y códigos de barra")
     )
 
     val clientReports = listOf(

@@ -1,7 +1,12 @@
 package com.spectrum.phoenix.ui.main.ventas
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -27,12 +32,15 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.spectrum.phoenix.logic.model.Client
 import com.spectrum.phoenix.logic.model.Product
+import com.spectrum.phoenix.logic.model.Sale
 import com.spectrum.phoenix.logic.model.SaleItem
 import com.spectrum.phoenix.logic.ventas.VentasViewModel
+import com.spectrum.phoenix.ui.components.BarcodeScannerView
 import com.spectrum.phoenix.ui.components.LocalToastController
 import com.spectrum.phoenix.ui.components.ToastType
 import com.spectrum.phoenix.ui.theme.FocusBlue
@@ -42,11 +50,12 @@ import com.spectrum.phoenix.ui.theme.PhoenixTheme
 @Composable
 fun VentasScreen(ventasViewModel: VentasViewModel = viewModel()) {
     val context = LocalContext.current
-    val toast = LocalToastController.current // ACTIVADO TOAST PRO
+    val toast = LocalToastController.current
     
     val cartItems by ventasViewModel.cartItems.collectAsStateWithLifecycle()
     val total by ventasViewModel.total.collectAsStateWithLifecycle()
     val selectedClient by ventasViewModel.selectedClient.collectAsStateWithLifecycle()
+    val allProducts by ventasViewModel.allProducts.collectAsStateWithLifecycle()
     val filteredProducts by ventasViewModel.filteredProducts.collectAsStateWithLifecycle()
     val filteredClients by ventasViewModel.filteredClients.collectAsStateWithLifecycle()
     val searchQuery by ventasViewModel.productSearchQuery.collectAsStateWithLifecycle()
@@ -55,17 +64,32 @@ fun VentasScreen(ventasViewModel: VentasViewModel = viewModel()) {
 
     var showQtyDialog by remember { mutableStateOf<Product?>(null) }
     var showClientPicker by remember { mutableStateOf(false) }
+    var showScanner by remember { mutableStateOf(false) }
+    var saleToPrint by remember { mutableStateOf<Sale?>(null) }
     
     val phoenixGreen = MaterialTheme.colorScheme.secondary
     val phoenixBlue = MaterialTheme.colorScheme.primary
 
+    // Permission launcher for camera
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            showScanner = true
+        } else {
+            toast.show("Permiso de cámara denegado", ToastType.ERROR)
+        }
+    }
+
     LaunchedEffect(result) {
-        result?.let {
-            if (it.isSuccess) {
-                toast.show("Operación exitosa", ToastType.SUCCESS)
+        result?.let { res ->
+            if (res.isSuccess) {
+                toast.show("¡Venta completada!", ToastType.SUCCESS)
+                // En lugar de imprimir directo, abrimos el diálogo opcional
+                saleToPrint = res.getOrNull()
                 ventasViewModel.clearResult()
             } else {
-                toast.show("Error: ${it.exceptionOrNull()?.message}", ToastType.ERROR)
+                toast.show("Error: ${res.exceptionOrNull()?.message}", ToastType.ERROR)
             }
         }
     }
@@ -99,21 +123,39 @@ fun VentasScreen(ventasViewModel: VentasViewModel = viewModel()) {
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                Box(modifier = Modifier.fillMaxWidth()) {
+                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     OutlinedTextField(
                         value = searchQuery,
                         onValueChange = { ventasViewModel.onProductSearchQueryChange(it) },
                         placeholder = { Text("Buscar producto...", fontSize = 13.sp) },
                         leadingIcon = { Icon(Icons.Default.Search, null, tint = phoenixBlue, modifier = Modifier.size(18.dp)) },
-                        modifier = Modifier.fillMaxWidth().height(50.dp),
+                        modifier = Modifier.weight(1f).height(50.dp),
                         shape = RoundedCornerShape(12.dp),
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = phoenixBlue)
                     )
+                    
+                    Spacer(modifier = Modifier.width(8.dp))
+                    
+                    IconButton(
+                        onClick = {
+                            val permissionCheckResult = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)
+                            if (permissionCheckResult == PackageManager.PERMISSION_GRANTED) {
+                                showScanner = true
+                            } else {
+                                cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                            }
+                        },
+                        modifier = Modifier.size(50.dp).background(phoenixBlue.copy(alpha = 0.1f), RoundedCornerShape(12.dp))
+                    ) {
+                        Icon(Icons.Default.QrCodeScanner, null, tint = phoenixBlue)
+                    }
+                }
 
+                Box(modifier = Modifier.fillMaxWidth()) {
                     if (filteredProducts.isNotEmpty()) {
                         Card(
-                            modifier = Modifier.fillMaxWidth().padding(top = 54.dp).heightIn(max = 240.dp),
+                            modifier = Modifier.fillMaxWidth().padding(top = 4.dp).heightIn(max = 240.dp),
                             elevation = CardDefaults.cardElevation(8.dp),
                             shape = RoundedCornerShape(12.dp),
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -206,6 +248,92 @@ fun VentasScreen(ventasViewModel: VentasViewModel = viewModel()) {
                     }
                 }
             }
+            
+            if (showScanner) {
+                Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+                    BarcodeScannerView(onBarcodeDetected = { code ->
+                        val product = allProducts.find { it.id == code }
+                        if (product != null) {
+                            showScanner = false
+                            showQtyDialog = product
+                        } else {
+                            toast.show("Producto no encontrado: $code", ToastType.ERROR)
+                        }
+                    })
+                    
+                    IconButton(
+                        onClick = { showScanner = false },
+                        modifier = Modifier.align(Alignment.TopEnd).padding(16.dp).background(Color.Black.copy(0.5f), CircleShape)
+                    ) {
+                        Icon(Icons.Default.Close, null, tint = Color.White)
+                    }
+                    
+                    // Guía visual para el usuario
+                    Box(
+                        modifier = Modifier
+                            .size(250.dp)
+                            .align(Alignment.Center)
+                            .background(Color.Transparent, RoundedCornerShape(12.dp))
+                            .border(2.dp, phoenixBlue, RoundedCornerShape(12.dp))
+                    )
+                }
+            }
+        }
+
+        // DIÁLOGO OPCIONAL DE IMPRESIÓN/COMPARTIR
+        if (saleToPrint != null) {
+            AlertDialog(
+                onDismissRequest = { saleToPrint = null },
+                properties = DialogProperties(usePlatformDefaultWidth = false)
+            ) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(0.85f).wrapContentHeight(),
+                    shape = RoundedCornerShape(28.dp),
+                    color = MaterialTheme.colorScheme.surface,
+                    tonalElevation = 8.dp
+                ) {
+                    Column(
+                        modifier = Modifier.padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Box(
+                            modifier = Modifier.size(60.dp).background(phoenixGreen.copy(alpha = 0.1f), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.CheckCircle, null, tint = phoenixGreen, modifier = Modifier.size(32.dp))
+                        }
+                        
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("Venta Exitosa", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black)
+                        Text("¿Deseas generar el ticket de esta operación?", color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = androidx.compose.ui.text.style.TextAlign.Center, fontSize = 14.sp)
+                        
+                        Spacer(modifier = Modifier.height(24.dp))
+                        
+                        Button(
+                            onClick = { 
+                                ventasViewModel.generateTicket(context, saleToPrint!!)
+                                saleToPrint = null
+                            },
+                            modifier = Modifier.fillMaxWidth().height(50.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = FocusBlue)
+                        ) {
+                            Icon(Icons.Default.Share, null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("COMPARTIR TICKET", fontWeight = FontWeight.Bold)
+                        }
+                        
+                        Spacer(modifier = Modifier.height(8.dp))
+                        
+                        TextButton(
+                            onClick = { saleToPrint = null },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("NO, FINALIZAR AHORA", color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Medium)
+                        }
+                    }
+                }
+            }
         }
 
         if (showClientPicker) {
@@ -237,18 +365,43 @@ fun VentasScreen(ventasViewModel: VentasViewModel = viewModel()) {
             AlertDialog(onDismissRequest = { showQtyDialog = null }) {
                 Surface(shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.surface, tonalElevation = 8.dp, modifier = Modifier.fillMaxWidth(0.85f)) {
                     Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(product.name, fontWeight = FontWeight.Black, fontSize = 18.sp)
-                        Spacer(modifier = Modifier.height(20.dp))
+                        Text("Confirmar Producto", style = MaterialTheme.typography.labelSmall, color = phoenixBlue, fontWeight = FontWeight.Bold)
+                        Text(product.name, fontWeight = FontWeight.Black, fontSize = 20.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                        Text("Precio: C$ ${product.price}", fontSize = 14.sp, color = phoenixGreen, fontWeight = FontWeight.Bold)
+                        
+                        Spacer(modifier = Modifier.height(24.dp))
+                        
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            IconButton(onClick = { if (qty > 1) qty-- }, modifier = Modifier.size(48.dp).background(phoenixBlue.copy(alpha = 0.1f), CircleShape)) { Icon(Icons.Default.Remove, null, tint = phoenixBlue) }
+                            IconButton(onClick = { if (qty > 1) qty-- }, modifier = Modifier.size(44.dp).background(phoenixBlue.copy(alpha = 0.1f), CircleShape)) { Icon(Icons.Default.Remove, null, tint = phoenixBlue) }
                             Text(text = "$qty", fontSize = 28.sp, fontWeight = FontWeight.Black, modifier = Modifier.padding(horizontal = 24.dp))
-                            IconButton(onClick = { if (qty < product.quantity) qty++ }, modifier = Modifier.size(48.dp).background(phoenixBlue.copy(alpha = 0.1f), CircleShape)) { Icon(Icons.Default.Add, null, tint = phoenixBlue) }
+                            IconButton(onClick = { if (qty < product.quantity) qty++ }, modifier = Modifier.size(44.dp).background(phoenixBlue.copy(alpha = 0.1f), CircleShape)) { Icon(Icons.Default.Add, null, tint = phoenixBlue) }
                         }
-                        Spacer(modifier = Modifier.height(20.dp))
-                        Text("C$ ${String.format("%.2f", qty * product.price)}", fontWeight = FontWeight.Black, fontSize = 20.sp, color = phoenixGreen)
-                        Spacer(modifier = Modifier.height(20.dp))
-                        Button(onClick = { ventasViewModel.addToCart(product, qty); showQtyDialog = null }, modifier = Modifier.fillMaxWidth().height(48.dp), shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.buttonColors(containerColor = phoenixBlue)) {
-                            Text("AÑADIR", color = Color.White, fontWeight = FontWeight.Bold)
+                        
+                        Spacer(modifier = Modifier.height(24.dp))
+                        
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("SUBTOTAL", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+                            Text("C$ ${String.format("%.2f", qty * product.price)}", fontWeight = FontWeight.Black, fontSize = 20.sp, color = phoenixGreen)
+                        }
+                        
+                        Spacer(modifier = Modifier.height(24.dp))
+                        
+                        Button(
+                            onClick = { 
+                                ventasViewModel.addToCart(product, qty)
+                                showQtyDialog = null 
+                            }, 
+                            modifier = Modifier.fillMaxWidth().height(52.dp), 
+                            shape = RoundedCornerShape(14.dp), 
+                            colors = ButtonDefaults.buttonColors(containerColor = phoenixBlue)
+                        ) {
+                            Icon(Icons.Default.ShoppingCartCheckout, null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("CONFIRMAR Y AÑADIR", color = Color.White, fontWeight = FontWeight.Bold)
+                        }
+                        
+                        TextButton(onClick = { showQtyDialog = null }, modifier = Modifier.fillMaxWidth()) {
+                            Text("Cancelar", color = MaterialTheme.colorScheme.error)
                         }
                     }
                 }
