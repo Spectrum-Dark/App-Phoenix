@@ -1,6 +1,6 @@
 {
   "latestVersion": "1.1",
   "apkUrl": "https://raw.githubusercontent.com/Spectrum-Dark/App-Phoenix/master/release/app-release.apk",
-  "releaseNotes": "- Nueva carpeta de versiones configurada.\n- Corregidos errores de descarga e instalación.\n- Mejorada la interfaz de actualizaciones.",
+  "releaseNotes": "- Soluciones de bugs al descargar actualizaciones \n - Mejoras de rendimiento",
   "forceUpdate": false
 }
