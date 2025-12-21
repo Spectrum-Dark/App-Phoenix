@@ -28,9 +28,9 @@ class UpdateViewModel(application: Application) : AndroidViewModel(application) 
     val downloadProgress: StateFlow<Float> = _downloadProgress
 
     val currentVersion: String = try {
-        context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "1.0.0"
+        context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "1.0"
     } catch (e: Exception) {
-        "1.0.0"
+        "1.0"
     }
 
     fun checkForUpdates() {
@@ -38,13 +38,14 @@ class UpdateViewModel(application: Application) : AndroidViewModel(application) 
             _updateState.value = UpdateState.Checking
             val result = repository.checkUpdate()
             result.onSuccess { info ->
+                // Comparamos versiones. Asegúrate que en build.gradle sea igual que en el JSON
                 if (info.latestVersion != currentVersion) {
                     _updateState.value = UpdateState.Available(info)
                 } else {
                     _updateState.value = UpdateState.UpToDate
                 }
             }.onFailure {
-                _updateState.value = UpdateState.Error(it.message ?: "Error desconocido")
+                _updateState.value = UpdateState.Error("Error al buscar: ${it.message}")
             }
         }
     }
@@ -53,15 +54,24 @@ class UpdateViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch(Dispatchers.IO) {
             _updateState.value = UpdateState.Downloading
             try {
-                val client = OkHttpClient()
+                val client = OkHttpClient.Builder()
+                    .followRedirects(true)
+                    .followSslRedirects(true)
+                    .build()
+                
                 val request = Request.Builder().url(apkUrl).build()
                 val response = client.newCall(request).execute()
 
-                if (!response.isSuccessful) throw Exception("Error al descargar el archivo")
+                if (!response.isSuccessful) {
+                    throw Exception("Servidor respondió con código ${response.code}. Verifica que el link del APK sea correcto en update.json.")
+                }
 
-                val body = response.body ?: throw Exception("Cuerpo de respuesta vacío")
+                val body = response.body ?: throw Exception("El archivo está vacío")
                 val totalBytes = body.contentLength()
-                val file = File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "phoenix_update.apk")
+                
+                // Usamos el directorio de archivos externos para evitar problemas de permisos de escritura
+                val file = File(context.getExternalFilesDir(null), "update.apk")
+                if (file.exists()) file.delete()
                 
                 body.byteStream().use { input ->
                     FileOutputStream(file).use { output ->
@@ -81,19 +91,27 @@ class UpdateViewModel(application: Application) : AndroidViewModel(application) 
                 
                 _updateState.value = UpdateState.ReadyToInstall(file)
             } catch (e: Exception) {
-                _updateState.value = UpdateState.Error("Fallo en descarga: ${e.message}")
+                _updateState.value = UpdateState.Error("Fallo: ${e.message}")
             }
         }
     }
 
     fun installApk(file: File) {
-        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
-        val intent = Intent(Intent.ACTION_VIEW).apply {
-            setDataAndType(uri, "application/vnd.android.package-archive")
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        try {
+            val uri = FileProvider.getUriForFile(
+                context, 
+                "${context.packageName}.fileprovider", 
+                file
+            )
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, "application/vnd.android.package-archive")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            _updateState.value = UpdateState.Error("No se pudo abrir el instalador: ${e.message}")
         }
-        context.startActivity(intent)
     }
 }
 

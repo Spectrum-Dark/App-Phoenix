@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths>
     <cache-path name="my_cache" path="." />
+    <!-- Esta línea es necesaria para que el instalador vea el APK descargado -->
+    <external-files-path name="external_files" path="." />
 </paths>

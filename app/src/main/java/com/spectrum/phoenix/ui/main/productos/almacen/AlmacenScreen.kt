@@ -17,13 +17,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -45,7 +43,6 @@ import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import java.util.*
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AlmacenScreen(navController: NavController, productViewModel: ProductViewModel = viewModel()) {
     val products by productViewModel.filteredProducts.collectAsStateWithLifecycle()
@@ -173,7 +170,7 @@ fun ProductCard(product: Product, isAdmin: Boolean, onEdit: (Product) -> Unit, o
         Box(modifier = Modifier.fillMaxWidth()) {
             Row(modifier = Modifier.padding(14.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Box(modifier = Modifier.size(42.dp).background(accentColor.copy(alpha = 0.15f), CircleShape), contentAlignment = Alignment.Center) {
-                    Icon(imageVector = Icons.Default.Inventory2, contentDescription = null, tint = accentColor, modifier = Modifier.size(22.dp))
+                    Icon(imageVector = Icons.Default.Inventory, contentDescription = null, tint = accentColor, modifier = Modifier.size(22.dp))
                 }
                 Spacer(modifier = Modifier.width(14.dp))
                 Column(modifier = Modifier.weight(1f)) {
@@ -204,7 +201,6 @@ fun ProductCard(product: Product, isAdmin: Boolean, onEdit: (Product) -> Unit, o
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProductFormDialog(title: String, product: Product? = null, onDismiss: () -> Unit, onConfirm: (String, Double, Int, String?) -> Unit) {
     var name by remember { mutableStateOf(product?.name ?: "") }
@@ -220,30 +216,53 @@ fun ProductFormDialog(title: String, product: Product? = null, onDismiss: () -> 
 
     LaunchedEffect(Unit) { nameFocus.requestFocus() }
 
-    BasicAlertDialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Surface(modifier = Modifier.fillMaxWidth(0.85f).wrapContentHeight().imePadding(), shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.surface, tonalElevation = 6.dp) {
-            Column(modifier = Modifier.padding(24.dp).verticalScroll(rememberScrollState()), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Box(modifier = Modifier.size(42.dp).background(FocusBlue.copy(alpha = 0.15f), CircleShape), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.Inventory, null, tint = FocusBlue, modifier = Modifier.size(20.dp))
-                    }
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+        confirmButton = {
+            Button(
+                onClick = { 
+                    val p = price.toDoubleOrNull() ?: 0.0
+                    val q = quantity.toIntOrNull() ?: 0
+                    val formattedName = name.trim().lowercase().split(" ").joinToString(" ") { it.replaceFirstChar { char -> char.uppercase() } }
+                    if (name.isNotEmpty()) onConfirm(formattedName, p, q, expiryDate.ifEmpty { null }) 
+                }, 
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                shape = RoundedCornerShape(14.dp), 
+                colors = ButtonDefaults.buttonColors(containerColor = FocusBlue, contentColor = Color.White)
+            ) {
+                Icon(Icons.Default.CheckCircle, null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("GUARDAR PRODUCTO", fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) { 
+                Text("Cancelar", color = MaterialTheme.colorScheme.onSurfaceVariant) 
+            }
+        },
+        title = {
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Box(modifier = Modifier.size(42.dp).background(FocusBlue.copy(alpha = 0.15f), CircleShape), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Default.Inventory, null, tint = FocusBlue, modifier = Modifier.size(20.dp))
                 }
-
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 0.5.dp)
-
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            }
+        },
+        text = {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
                     value = name, 
                     onValueChange = { name = it }, 
                     label = { Text("Nombre del Producto") }, 
-                    leadingIcon = { Icon(Icons.Default.Label, null, tint = FocusBlue, modifier = Modifier.size(20.dp)) },
+                    leadingIcon = { Icon(Icons.Default.Tag, null, tint = FocusBlue, modifier = Modifier.size(20.dp)) },
                     modifier = Modifier.fillMaxWidth().focusRequester(nameFocus), 
                     shape = RoundedCornerShape(12.dp),
                     singleLine = true, 
                     keyboardOptions = KeyboardOptions(
                         imeAction = ImeAction.Next,
-                        capitalization = KeyboardCapitalization.Words // MAYÚSCULA INICIAL AUTOMÁTICA
+                        capitalization = KeyboardCapitalization.Words
                     ), 
                     keyboardActions = KeyboardActions(onNext = { priceFocus.requestFocus() }),
                     colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = FocusBlue, focusedLabelColor = FocusBlue)
@@ -291,31 +310,7 @@ fun ProductFormDialog(title: String, product: Product? = null, onDismiss: () -> 
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = FocusBlue, focusedLabelColor = FocusBlue)
                 )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Button(
-                    onClick = { 
-                        val p = price.toDoubleOrNull() ?: 0.0
-                        val q = quantity.toIntOrNull() ?: 0
-                        // TRANSFORMAMOS EL TEXTO A "TITLE CASE" (Mayúscula Inicial) ANTES DE GUARDAR
-                        val formattedName = name.trim().lowercase().split(" ").joinToString(" ") { it.replaceFirstChar { char -> char.uppercase() } }
-                        if (name.isNotEmpty()) onConfirm(formattedName, p, q, expiryDate.ifEmpty { null }) 
-                    }, 
-                    modifier = Modifier.fillMaxWidth().height(52.dp),
-                    shape = RoundedCornerShape(14.dp), 
-                    colors = ButtonDefaults.buttonColors(containerColor = FocusBlue, contentColor = Color.White),
-                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
-                ) {
-                    Icon(Icons.Default.CheckCircle, null, modifier = Modifier.size(18.dp), tint = Color.White)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("GUARDAR PRODUCTO", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.White)
-                }
-
-                TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) { 
-                    Text("Cancelar", color = MaterialTheme.colorScheme.onSurfaceVariant) 
-                }
             }
         }
-    }
+    )
 }
