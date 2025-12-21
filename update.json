@@ -1,0 +1,6 @@
+{
+  "latestVersion": "1.0.0",
+  "apkUrl": "https://github.com/Spectrum-Dark/App-Phoenix/releases/download/v1.0.0/app-release.apk",
+  "releaseNotes": "- Versión de producción inicial.\n- Gestión de clientes y productos.\n- Escaneo de códigos de barras.\n- Sincronización con Firebase.",
+  "forceUpdate": false
+}

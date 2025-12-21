@@ -41,6 +41,7 @@ import com.spectrum.phoenix.ui.main.dashboard.DashboardScreen
 import com.spectrum.phoenix.ui.main.perfil.PerfilScreen
 import com.spectrum.phoenix.ui.main.configuracion.BackupScreen
 import com.spectrum.phoenix.ui.main.configuracion.UsuariosScreen
+import com.spectrum.phoenix.ui.main.configuracion.UpdateScreen
 import com.spectrum.phoenix.ui.main.productos.almacen.AlmacenScreen
 import com.spectrum.phoenix.ui.main.productos.vencimiento.VencimientoScreen
 import com.spectrum.phoenix.ui.main.reportes.ReportesScreen
@@ -88,6 +89,7 @@ fun MainScreen(navController: NavController, dashboardViewModel: DashboardViewMo
     
     if (isAdmin) {
         configChildren.add(MenuItem("usuarios", "Gestión de Usuarios", Icons.Default.Group))
+        configChildren.add(MenuItem("update", "Sistema de Actualización", Icons.Default.SystemUpdate))
         configChildren.add(MenuItem("backup", "Respaldo de Datos", Icons.Default.CloudUpload))
     }
 
@@ -112,7 +114,6 @@ fun MainScreen(navController: NavController, dashboardViewModel: DashboardViewMo
 
     var selectedItem by remember { mutableStateOf<MenuItem?>(adminPanel.children[0]) }
     
-    // CAMBIO SOLICITADO: Iniciar todo el menú compactado
     var expandedItems by remember { mutableStateOf(emptySet<String>()) }
 
     LaunchedEffect(mainContentNavController.currentBackStackEntry) {
@@ -382,7 +383,6 @@ fun MainScreen(navController: NavController, dashboardViewModel: DashboardViewMo
                         composable("ventas") { VentasScreen() }
                         composable("historial_ventas") { HistorialVentasScreen() }
                         composable("reportes") { ReportesScreen() }
-                        // USAR navController (Raíz) en lugar de mainContentNavController
                         composable("almacen") { AlmacenScreen(navController) }
                         composable("vencimiento") { VencimientoScreen() }
                         composable("lista") { ListaClientesScreen() }
@@ -390,6 +390,7 @@ fun MainScreen(navController: NavController, dashboardViewModel: DashboardViewMo
                         composable("perfil") { PerfilScreen() }
                         if (isAdmin) {
                             composable("usuarios") { UsuariosScreen() }
+                            composable("update") { UpdateScreen() }
                             composable("backup") { BackupScreen() }
                         }
                     }

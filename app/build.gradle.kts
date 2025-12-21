@@ -86,6 +86,9 @@ dependencies {
     implementation("androidx.camera:camera-view:${camerax_version}")
     implementation("com.google.mlkit:barcode-scanning:17.2.0")
 
+    // NETWORKING PARA ACTUALIZACIONES
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
