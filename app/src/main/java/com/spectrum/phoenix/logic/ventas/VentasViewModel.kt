@@ -11,6 +11,7 @@ import com.spectrum.phoenix.logic.model.Product
 import com.spectrum.phoenix.logic.model.Sale
 import com.spectrum.phoenix.logic.model.SaleItem
 import com.spectrum.phoenix.logic.session.SessionManager
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
@@ -33,6 +34,9 @@ class VentasViewModel : ViewModel() {
 
     private val _clientSearchQuery = MutableStateFlow("")
     val clientSearchQuery: StateFlow<String> = _clientSearchQuery
+
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading
 
     // Búsqueda normal de productos
     val filteredProducts: StateFlow<List<Product>> = _productSearchQuery
@@ -109,15 +113,32 @@ class VentasViewModel : ViewModel() {
         _productSearchQuery.value = "" 
     }
 
+    fun updateCartItemQuantity(productId: String, newQuantity: Int) {
+        val currentItems = _cartItems.value.toMutableList()
+        val index = currentItems.indexOfFirst { it.productId == productId }
+        if (index != -1) {
+            val item = currentItems[index]
+            currentItems[index] = item.copy(
+                quantity = newQuantity,
+                subtotal = newQuantity * item.price
+            )
+            _cartItems.value = currentItems
+        }
+    }
+
     fun removeFromCart(item: SaleItem) {
         _cartItems.value = _cartItems.value.filter { it.productId != item.productId }
     }
 
     fun finalizeSale() {
-        if (_cartItems.value.isEmpty()) return
+        if (_cartItems.value.isEmpty() || _isLoading.value) return
+        
+        _isLoading.value = true
         viewModelScope.launch {
             try {
-                // AHORA INCLUIMOS LOS DATOS DEL VENDEDOR EN LA VENTA
+                // Simulamos un retraso para que el usuario vea la animación (solicitado 2 seg)
+                delay(2000)
+                
                 val sale = Sale(
                     clientId = _selectedClient.value?.id,
                     clientName = _selectedClient.value?.let { "${it.name} ${it.lastName}" } ?: "Venta General",
@@ -134,6 +155,8 @@ class VentasViewModel : ViewModel() {
                 _saleResult.value = result
             } catch (e: Exception) {
                 _saleResult.value = Result.failure(e)
+            } finally {
+                _isLoading.value = false
             }
         }
     }

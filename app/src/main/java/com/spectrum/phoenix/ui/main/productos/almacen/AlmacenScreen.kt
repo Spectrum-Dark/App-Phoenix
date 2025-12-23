@@ -218,7 +218,6 @@ fun ProductFormDialog(title: String, product: Product? = null, onDismiss: () -> 
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false),
         confirmButton = {
             Button(
                 onClick = { 
