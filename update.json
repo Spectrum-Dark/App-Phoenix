@@ -1,6 +1,6 @@
 {
-  "latestVersion": "1.0.2",
+  "latestVersion": "1.0.3",
   "apkUrl": "https://raw.githubusercontent.com/Spectrum-Dark/App-Phoenix/master/release/app-release.apk",
-  "releaseNotes": "- Solución a ventas duplicadas\n- Mejora el diseño al agregar productos\n- Mejora en el diseño de buscar cliente en ventas",
+  "releaseNotes": "- Solución definitiva a ventas duplicadas y protección multiclíc\n- Edición de cantidad de productos directamente en el carrito\n- Reportes inteligentes agrupados por producto en Centro de Inteligencia\n- Corrección en exportación de respaldos a la carpeta de Descargas\n- Integración total de notificaciones personalizadas Phoenix\n- Animaciones de carga optimizadas en procesos de cobro",
   "forceUpdate": false
 }

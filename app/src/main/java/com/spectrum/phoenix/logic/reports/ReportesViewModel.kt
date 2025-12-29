@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.spectrum.phoenix.logic.almacen.ProductRepository
 import com.spectrum.phoenix.logic.clientes.ClientRepository
 import com.spectrum.phoenix.logic.clientes.CreditRepository
+import com.spectrum.phoenix.logic.model.SaleItem
 import com.spectrum.phoenix.logic.ventas.SaleRepository
 import com.spectrum.phoenix.ui.components.ToastController
 import com.spectrum.phoenix.ui.components.ToastType
@@ -79,30 +80,51 @@ class ReportesViewModel : ViewModel() {
                 }
                 "VENTAS_GENERALES" -> {
                     val sales = saleRepo.getSales().first().filter { it.clientId == null && it.date.startsWith(today) }
-                    val data = sales.flatMap { s -> s.items.map { i -> listOf(s.date.takeLast(11), i.productName, i.quantity.toString(), "C$ ${String.format("%.2f", i.subtotal)}") } }
-                    if (data.isNotEmpty()) {
+                    val allItems = sales.flatMap { it.items }
+                    val groupedData = groupItemsByProduct(allItems)
+                    
+                    if (groupedData.isNotEmpty()) {
                         val total = sales.sumOf { it.total }
-                        generator.generatePDF("Ventas Contado Hoy", listOf("Hora", "Producto", "Cant.", "Subt."), data, listOf("TOTAL VENTAS", "", "", "C$ ${String.format("%.2f", total)}"))
+                        generator.generatePDF("Ventas Contado Hoy", listOf("Producto", "Cantidad", "Subtotal", "Prom. Precio"), groupedData, listOf("TOTAL VENTAS", "", "C$ ${String.format("%.2f", total)}", ""))
                     } else toast.show("No hay ventas de contado hoy", ToastType.INFO)
                 }
                 "VENTAS_CREDITOS" -> {
                     val sales = saleRepo.getSales().first().filter { it.clientId != null && it.date.startsWith(today) }
-                    val data = sales.flatMap { s -> s.items.map { i -> listOf(s.clientName, i.productName, "C$ ${String.format("%.2f", i.subtotal)}", s.date.takeLast(11)) } }
-                    if (data.isNotEmpty()) {
+                    val allItems = sales.flatMap { it.items }
+                    val groupedData = groupItemsByProduct(allItems)
+
+                    if (groupedData.isNotEmpty()) {
                         val total = sales.sumOf { it.total }
-                        generator.generatePDF("Ventas Crédito Hoy", listOf("Cliente", "Producto", "Subt.", "Hora"), data, listOf("TOTAL CRÉDITOS", "", "C$ ${String.format("%.2f", total)}", ""))
+                        generator.generatePDF("Ventas Crédito Hoy", listOf("Producto", "Cantidad", "Subtotal", "Prom. Precio"), groupedData, listOf("TOTAL CRÉDITOS", "", "C$ ${String.format("%.2f", total)}", ""))
                     } else toast.show("No hay ventas al crédito hoy", ToastType.INFO)
                 }
                 "VENTAS_TOTALES" -> {
                     val sales = saleRepo.getSales().first().filter { it.date.startsWith(today) }
-                    val data = sales.flatMap { s -> s.items.map { i -> listOf(i.productName, i.quantity.toString(), "C$ ${String.format("%.2f", i.subtotal)}", s.date.takeLast(11)) } }
-                    if (data.isNotEmpty()) {
+                    val allItems = sales.flatMap { it.items }
+                    val groupedData = groupItemsByProduct(allItems)
+
+                    if (groupedData.isNotEmpty()) {
                         val total = sales.sumOf { it.total }
-                        generator.generatePDF("Ventas Totales Hoy", listOf("Producto", "Cant.", "Subtotal", "Hora"), data, listOf("TOTAL HOY", "", "C$ ${String.format("%.2f", total)}", ""))
+                        generator.generatePDF("Ventas Totales Hoy", listOf("Producto", "Cantidad Tot.", "Venta Tot.", "Precio Ref."), groupedData, listOf("TOTAL HOY", "", "C$ ${String.format("%.2f", total)}", ""))
                     } else toast.show("No se han realizado ventas hoy", ToastType.INFO)
                 }
             }
         }
+    }
+
+    private fun groupItemsByProduct(items: List<SaleItem>): List<List<String>> {
+        return items.groupBy { it.productName }
+            .map { (name, productItems) ->
+                val totalQty = productItems.sumOf { it.quantity }
+                val totalSubtotal = productItems.sumOf { it.subtotal }
+                val avgPrice = totalSubtotal / totalQty
+                listOf(
+                    name,
+                    totalQty.toString(),
+                    "C$ ${String.format("%.2f", totalSubtotal)}",
+                    "C$ ${String.format("%.2f", avgPrice)}"
+                )
+            }.sortedByDescending { it[2] } // Ordenar por mayor venta
     }
 
     private fun isExpiringSoon(dateStr: String?): Boolean {

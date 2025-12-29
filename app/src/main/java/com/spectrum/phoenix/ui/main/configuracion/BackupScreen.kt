@@ -1,7 +1,6 @@
 package com.spectrum.phoenix.ui.main.configuracion
 
 import android.net.Uri
-import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -22,18 +21,20 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.spectrum.phoenix.logic.configuracion.BackupViewModel
+import com.spectrum.phoenix.ui.components.LocalToastController
+import com.spectrum.phoenix.ui.components.ToastType
 import com.spectrum.phoenix.ui.theme.FocusBlue
 import com.spectrum.phoenix.ui.theme.PhoenixTheme
 
 @Composable
 fun BackupScreen(backupViewModel: BackupViewModel = viewModel()) {
     val context = LocalContext.current
+    val toast = LocalToastController.current
     val result by backupViewModel.opResult.collectAsStateWithLifecycle()
     val isLoading by backupViewModel.isLoading.collectAsStateWithLifecycle()
     
     var showImportConfirm by remember { mutableStateOf<Uri?>(null) }
 
-    // Selector de archivos nativo
     val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let { showImportConfirm = it }
     }
@@ -41,10 +42,10 @@ fun BackupScreen(backupViewModel: BackupViewModel = viewModel()) {
     LaunchedEffect(result) {
         result?.let {
             if (it.isSuccess) {
-                Toast.makeText(context, it.getOrNull(), Toast.LENGTH_LONG).show()
+                toast.show(it.getOrNull() ?: "Operación exitosa", ToastType.SUCCESS)
                 backupViewModel.clearResult()
             } else {
-                Toast.makeText(context, "Error: ${it.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
+                toast.show("Error: ${it.exceptionOrNull()?.message}", ToastType.ERROR)
             }
         }
     }
@@ -67,7 +68,6 @@ fun BackupScreen(backupViewModel: BackupViewModel = viewModel()) {
 
             Spacer(modifier = Modifier.height(40.dp))
 
-            // TARJETA DE EXPORTACIÓN
             BackupActionCard(
                 title = "Exportar Base de Datos",
                 description = "Genera un archivo JSON con toda la información actual y guárdalo en tu carpeta de Descargas.",
@@ -79,7 +79,6 @@ fun BackupScreen(backupViewModel: BackupViewModel = viewModel()) {
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // TARJETA DE IMPORTACIÓN
             BackupActionCard(
                 title = "Importar/Restaurar Datos",
                 description = "Selecciona un archivo de respaldo previo para sobrescribir la base de datos actual. ¡Atención: Esto borrará los datos actuales!",
@@ -95,7 +94,6 @@ fun BackupScreen(backupViewModel: BackupViewModel = viewModel()) {
             }
         }
 
-        // DIÁLOGO DE CONFIRMACIÓN CRÍTICA
         if (showImportConfirm != null) {
             AlertDialog(
                 onDismissRequest = { showImportConfirm = null },
