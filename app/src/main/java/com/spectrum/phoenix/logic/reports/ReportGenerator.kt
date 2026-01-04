@@ -71,11 +71,27 @@ class ReportGenerator(private val context: Context, private val toast: ToastCont
                 currentY = 130f
             }
 
+            // DETECCIÓN DE LÍNEA DIVISORA ESPECIAL
+            if (row.size == 1 && row[0] == "---LINE_SEPARATOR---") {
+                canvas.drawLine(margin, currentY - 5f, pageWidth - margin, currentY - 5f, Paint().apply { color = Color.parseColor("#E0E0E0"); strokeWidth = 0.8f })
+                currentY += 15f
+                return@forEach
+            }
+
             var colX = margin
             val colWidth = (pageWidth - (margin * 2)) / headers.size
             row.forEach { cell ->
                 val truncated = if (cell.length > 22) cell.take(19) + "..." else cell
-                canvas.drawText(truncated, colX, currentY, paintText.apply { textSize = 9f })
+                
+                // Estilo especial para subtotales de clientes
+                val isSubtotal = cell.startsWith("SUBTOTAL") || (row.isNotEmpty() && row[0].startsWith("SUBTOTAL"))
+                val paint = if (isSubtotal) {
+                    Paint(paintText).apply { isFakeBoldText = true; textSize = 9.5f; color = Color.parseColor("#333333") }
+                } else {
+                    paintText.apply { isFakeBoldText = false; textSize = 9f; color = Color.BLACK }
+                }
+                
+                canvas.drawText(truncated, colX, currentY, paint)
                 colX += colWidth
             }
             currentY += 20f
@@ -100,8 +116,6 @@ class ReportGenerator(private val context: Context, private val toast: ToastCont
         val pdfDocument = PdfDocument()
         var pageNumber = 1
         
-        // DISEÑO DE REJILLA (GRID) PARA ETIQUETAS REALES
-        // 2 columnas x 8 filas = 16 etiquetas por página
         val cols = 2
         val rows = 8
         val itemsPerPage = cols * rows
@@ -137,23 +151,18 @@ class ReportGenerator(private val context: Context, private val toast: ToastCont
             val x = margin + (col * colWidth) + 10f
             val y = margin + (row * rowHeight) + 30f
 
-            // Nombre del Producto (Cortado si es muy largo para que quepa en la columna)
             val displayName = if (product.name.length > 25) product.name.take(22) + "..." else product.name
             canvas.drawText(displayName.uppercase(), x, y, paintText.apply { isFakeBoldText = true; textSize = 9f })
             canvas.drawText("ID: ${product.id}", x, y + 12f, paintText.apply { isFakeBoldText = false; textSize = 7f; color = Color.GRAY })
 
-            // Generar y dibujar el código de barras (Tamaño optimizado para etiquetas de 2.5" aprox)
             runBlocking {
-                // Generamos a 300x60 para que en el PDF se vea nítido pero compacto
                 val bitmap = BarcodeUtils.generateBarcode(product.id, width = 300, height = 60)
                 bitmap?.let {
-                    // Escalamos visualmente el bitmap para que ocupe el ancho de la columna menos márgenes
                     val destRect = android.graphics.RectF(x, y + 18f, x + colWidth - 30f, y + rowHeight - 15f)
                     canvas.drawBitmap(it, null, destRect, null)
                 }
             }
             
-            // Dibujar guías de corte (opcional, muy tenue)
             val linePaint = Paint().apply { color = Color.parseColor("#F0F0F0"); strokeWidth = 0.5f }
             canvas.drawRect(x - 5f, y - 15f, x + colWidth - 15f, y + rowHeight - 5f, linePaint.apply { style = Paint.Style.STROKE })
         }

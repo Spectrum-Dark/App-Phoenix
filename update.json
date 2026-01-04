@@ -1,5 +1,5 @@
 {
-  "latestVersion": "1.0.4",
+  "latestVersion": "1.0.5",
   "apkUrl": "https://raw.githubusercontent.com/Spectrum-Dark/App-Phoenix/master/release/app-release.apk",
   "releaseNotes": "- Reporte de ventas al crédito detallado y agrupado por cliente con subtotales\n- Pantalla de actualizaciones adaptable con soporte para notas extensas (scroll)",
   "forceUpdate": false

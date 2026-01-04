@@ -114,7 +114,9 @@ class ReportesViewModel : ViewModel() {
                             // Fila de subtotal por cliente
                             val clientTotal = clientSales.sumOf { it.total }
                             reportData.add(listOf("SUBTOTAL ${clientName.uppercase()}", "", "", "C$ ${String.format("%.2f", clientTotal)}"))
-                            reportData.add(listOf("", "", "", "")) // Espacio en blanco para separar clientes
+                            
+                            // AGREGAMOS UNA LÍNEA DIVISORA PARA QUE SE VEA BIEN BONITO
+                            reportData.add(listOf("---LINE_SEPARATOR---"))
                         }
 
                         val grandTotal = sales.sumOf { it.total }
