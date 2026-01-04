@@ -90,12 +90,40 @@ class ReportesViewModel : ViewModel() {
                 }
                 "VENTAS_CREDITOS" -> {
                     val sales = saleRepo.getSales().first().filter { it.clientId != null && it.date.startsWith(today) }
-                    val allItems = sales.flatMap { it.items }
-                    val groupedData = groupItemsByProduct(allItems)
+                    
+                    if (sales.isNotEmpty()) {
+                        val reportData = mutableListOf<List<String>>()
+                        val groupedByClient = sales.groupBy { it.clientName }
+                        
+                        groupedByClient.forEach { (clientName, clientSales) ->
+                            val clientItems = clientSales.flatMap { it.items }
+                            val productSummary = clientItems.groupBy { it.productName }
+                            
+                            var firstRow = true
+                            productSummary.forEach { (prodName, items) ->
+                                val qty = items.sumOf { it.quantity }
+                                val sub = items.sumOf { it.subtotal }
+                                reportData.add(listOf(
+                                    if (firstRow) clientName else "",
+                                    prodName,
+                                    qty.toString(),
+                                    "C$ ${String.format("%.2f", sub)}"
+                                ))
+                                firstRow = false
+                            }
+                            // Fila de subtotal por cliente
+                            val clientTotal = clientSales.sumOf { it.total }
+                            reportData.add(listOf("SUBTOTAL ${clientName.uppercase()}", "", "", "C$ ${String.format("%.2f", clientTotal)}"))
+                            reportData.add(listOf("", "", "", "")) // Espacio en blanco para separar clientes
+                        }
 
-                    if (groupedData.isNotEmpty()) {
-                        val total = sales.sumOf { it.total }
-                        generator.generatePDF("Ventas Crédito Hoy", listOf("Producto", "Cantidad", "Subtotal", "Prom. Precio"), groupedData, listOf("TOTAL CRÉDITOS", "", "C$ ${String.format("%.2f", total)}", ""))
+                        val grandTotal = sales.sumOf { it.total }
+                        generator.generatePDF(
+                            "Créditos Detallados ($today)", 
+                            listOf("Cliente", "Producto", "Cant.", "Subtotal"), 
+                            reportData, 
+                            listOf("TOTAL CRÉDITOS", "", "", "C$ ${String.format("%.2f", grandTotal)}")
+                        )
                     } else toast.show("No hay ventas al crédito hoy", ToastType.INFO)
                 }
                 "VENTAS_TOTALES" -> {
@@ -124,7 +152,7 @@ class ReportesViewModel : ViewModel() {
                     "C$ ${String.format("%.2f", totalSubtotal)}",
                     "C$ ${String.format("%.2f", avgPrice)}"
                 )
-            }.sortedByDescending { it[2] } // Ordenar por mayor venta
+            }.sortedByDescending { it[2] } 
     }
 
     private fun isExpiringSoon(dateStr: String?): Boolean {
